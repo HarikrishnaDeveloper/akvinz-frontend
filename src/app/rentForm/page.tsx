@@ -1,0 +1,386 @@
+"use client";
+import React, { useState } from "react";
+
+export default function RentalFormPage() {
+  const [step, setStep] = useState(1);
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  
+  // Customer & Plan States
+  const [customer, setCustomer] = useState<any>(null);
+  const [rentalPlanDuration, setRentalPlanDuration] = useState("12"); // 12 or 24
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  const handleSendOtp = async () => {
+    if (!mobileNumber || mobileNumber.length < 10) {
+      alert("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    
+    setIsSendingOtp(true);
+    setOtpError("");
+    try {
+      const res = await fetch("http://localhost:5000/api/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobileNumber: "+91" + mobileNumber }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setOtpSent(true);
+      } else {
+        setOtpError(data.message || data.error || "Failed to send OTP");
+      }
+    } catch (err) {
+      setOtpError("Error connecting to server");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6) return;
+    
+    setIsVerifyingOtp(true);
+    setOtpError("");
+    try {
+      const res = await fetch("http://localhost:5000/api/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobileNumber: "+91" + mobileNumber, code: otpCode }),
+      });
+      const data = await res.json();
+      
+      if (data.success && data.verified) {
+        setOtpVerified(true);
+        // Fetch customer details
+        await fetchCustomerDetails("+91" + mobileNumber);
+      } else {
+        setOtpError("Invalid OTP. Please try again.");
+      }
+    } catch (err) {
+      setOtpError("Error connecting to server");
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
+  const fetchCustomerDetails = async (fullMobileNumber: string) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/customer/${encodeURIComponent(fullMobileNumber)}`);
+      const data = await res.json();
+      if (data.success) {
+        setCustomer(data.customer);
+        const plan = data.customer.planDuration ? String(data.customer.planDuration) : "12";
+        setRentalPlanDuration(plan);
+      } else {
+        alert("No registration found for this mobile number. Please register first.");
+      }
+    } catch (err) {
+      alert("Failed to fetch customer details.");
+    }
+  };
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const getPrice = () => {
+    return rentalPlanDuration === "12" ? 699 : 449;
+  };
+
+  const handlePayment = async () => {
+    setIsProcessingPayment(true);
+    const isLoaded = await loadRazorpayScript();
+    
+    if (!isLoaded) {
+      alert("Razorpay SDK failed to load. Are you online?");
+      setIsProcessingPayment(false);
+      return;
+    }
+
+    try {
+      const amount = getPrice();
+
+      const res = await fetch("http://localhost:5000/api/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
+      
+      const data = await res.json();
+      
+      if (!data.success) {
+        alert("Failed to create order: " + data.message);
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      const options = {
+        key: "rzp_test_Swg0B14PfrFGrX", 
+        amount: data.order.amount,
+        currency: data.order.currency,
+        name: "Akvinz",
+        description: `Monthly Rent - ${rentalPlanDuration} Months Plan`,
+        order_id: data.order.id,
+        handler: async function (response: any) {
+          try {
+            const verifyRes = await fetch("http://localhost:5000/api/verify-rental-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                customerId: customer.id,
+                rentalPlanDuration: parseInt(rentalPlanDuration),
+                rentalAmount: amount,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+            
+            if (verifyData.success) {
+              setStep(3);
+            } else {
+              alert("Payment verification failed!");
+            }
+          } catch (e) {
+            alert("Error verifying payment.");
+          }
+        },
+        prefill: {
+          name: customer?.fullName,
+          contact: customer?.mobileNumber,
+          email: customer?.email
+        },
+        theme: {
+          color: "#f26522"
+        }
+      };
+      
+      const paymentObject = new (window as any).Razorpay(options);
+      paymentObject.open();
+      
+      paymentObject.on('payment.failed', function (response: any){
+        alert("Payment Failed: " + response.error.description);
+      });
+      
+    } catch (e) {
+      alert("Error initiating payment");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const getNextMonthDate = () => {
+    const today = new Date();
+    today.setDate(today.getDate() + 30);
+    return today.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+  };
+
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+  };
+
+  return (
+    <div className="min-h-screen bg-[#131724] text-white flex flex-col font-sans">
+      <header className="bg-[#1a1f30] flex items-center justify-between px-4 py-3 shadow-md sticky top-0 z-10 border-b border-gray-800">
+        <div className="w-8"></div> {/* Spacer */}
+        <div className="flex justify-center items-center">
+          <img src="/logo-footer.svg" alt="AKVINZ Logo" className="h-8 object-contain" />
+        </div>
+        <div className="w-8"></div> {/* Spacer */}
+      </header>
+
+      <main className="flex-grow max-w-3xl mx-auto w-full px-4 py-10 relative">
+        {step < 3 && (
+          <div className="text-center mb-10">
+            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+              {step === 1 ? "Customer Verification" : "Start Your Subscription"}
+            </h1>
+            <p className="text-gray-400 text-sm sm:text-base max-w-md mx-auto leading-relaxed">
+              {step === 1 ? "Enter your registered mobile number to proceed." : "Review your details and pay the first month's rent to activate your 30-day billing cycle."}
+            </p>
+          </div>
+        )}
+
+        {step === 1 && (
+          <div className="bg-[#1a1f30]/80 border border-gray-700/50 rounded-2xl p-6 sm:p-8 backdrop-blur-sm max-w-xl mx-auto">
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm text-gray-300 mb-2">Registered Mobile Number</label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-grow">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <span className="text-gray-500 font-medium">+91</span>
+                    </div>
+                    <input 
+                      type="tel" 
+                      value={mobileNumber}
+                      onChange={(e) => setMobileNumber(e.target.value)}
+                      disabled={otpVerified}
+                      className="block w-full pl-14 pr-4 py-3 bg-[#131724] border border-gray-700 rounded-xl focus:ring-1 focus:ring-[#f26522] focus:border-[#f26522] text-white transition-colors" 
+                      placeholder="Enter 10 digit number" 
+                    />
+                  </div>
+                  {!otpVerified && (
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={isSendingOtp || mobileNumber.length < 10}
+                      className="whitespace-nowrap px-6 py-3 bg-[#f26522] hover:bg-[#e05a1e] text-white font-medium rounded-xl transition-colors disabled:opacity-50"
+                    >
+                      {isSendingOtp ? "Sending..." : (otpSent ? "Resend OTP" : "Send OTP")}
+                    </button>
+                  )}
+                </div>
+
+                {otpSent && !otpVerified && (
+                  <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                    <input 
+                      type="text" 
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
+                      placeholder="Enter 6-digit OTP" 
+                      className="block w-full sm:w-1/2 px-4 py-3 bg-[#131724] border border-gray-700 rounded-xl text-center tracking-[0.5em] focus:ring-1 focus:ring-[#f26522] text-white"
+                      maxLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVerifyOtp}
+                      disabled={isVerifyingOtp || otpCode.length !== 6}
+                      className="w-full sm:w-auto px-6 py-3 bg-[#f26522] hover:bg-[#e05a1e] text-white font-medium rounded-xl transition-all disabled:opacity-50"
+                    >
+                      {isVerifyingOtp ? "Verifying..." : "Verify OTP"}
+                    </button>
+                  </div>
+                )}
+                
+                {otpError && <p className="mt-2 text-sm text-red-400">{otpError}</p>}
+                {otpVerified && <p className="mt-2 text-sm text-green-400 flex items-center gap-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg> Mobile Verified successfully!</p>}
+              </div>
+
+              {otpVerified && customer && (
+                <button 
+                  type="button" 
+                  onClick={() => setStep(2)}
+                  className="w-full bg-[#f26522] hover:bg-[#e05a1e] text-white font-semibold py-4 px-4 rounded-xl shadow-lg shadow-[#f26522]/20 flex justify-center items-center gap-2 transition-all"
+                >
+                  Continue to Rental Details
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {step === 2 && customer && (
+          <div className="bg-[#1a1f30]/80 border border-gray-700/50 rounded-2xl p-6 sm:p-8 backdrop-blur-sm space-y-8 max-w-xl mx-auto">
+            
+            {/* Customer Summary */}
+            <div className="bg-[#131724] p-5 rounded-xl border border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Customer Details</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="block text-gray-500 mb-1">Name</span>
+                  <span className="font-medium text-white">{customer.fullName}</span>
+                </div>
+                <div>
+                  <span className="block text-gray-500 mb-1">Mobile</span>
+                  <span className="font-medium text-white">{customer.mobileNumber}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="block text-gray-500 mb-1">Installation Address</span>
+                  <span className="font-medium text-white block">{customer.addressLine1}</span>
+                  {customer.addressLine2 && <span className="font-medium text-white block">{customer.addressLine2}</span>}
+                  <span className="font-medium text-white block">{customer.city}, {customer.state} - {customer.pincode}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Choose Plan */}
+            {/* Chosen Plan */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-4">Your Rental Plan</h3>
+              <div className="bg-[#f26522]/10 border-2 border-[#f26522] rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <span className="block text-gray-400 mb-1 text-sm">{rentalPlanDuration} Months Plan</span>
+                  <span className="block text-2xl font-bold text-white">₹{getPrice()}<span className="text-sm font-normal text-gray-500">/mo</span></span>
+                </div>
+                <div className="text-[#f26522]">
+                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Billing Summary */}
+            <div className="bg-[#131724] p-5 rounded-xl border border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">First Month Billing</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between text-gray-300">
+                  <span>Subscription Start</span>
+                  <span className="text-white font-medium">{getTodayDate()}</span>
+                </div>
+                <div className="flex justify-between text-gray-300 pb-3 border-b border-gray-800">
+                  <span>Next Billing Due</span>
+                  <span className="text-white font-medium">{getNextMonthDate()}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-white font-semibold text-lg">Total Amount</span>
+                  <span className="text-[#f26522] font-bold text-2xl">₹{getPrice()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button 
+                type="button" 
+                onClick={handlePayment}
+                disabled={isProcessingPayment}
+                className="w-full bg-[#f26522] hover:bg-[#e05a1e] text-white font-semibold py-4 px-4 rounded-xl shadow-lg shadow-[#f26522]/20 flex justify-center items-center gap-2 transition-all disabled:opacity-50"
+              >
+                <span className="text-lg">{isProcessingPayment ? "Processing..." : `Pay ₹${getPrice()} with Razorpay`}</span>
+                {!isProcessingPayment && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>}
+              </button>
+              <div className="mt-4 flex items-center justify-center gap-2 text-green-500">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                <span className="text-xs font-medium uppercase tracking-wider">Secured by Razorpay</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="bg-[#1a1f30]/80 border border-gray-700/50 rounded-2xl p-8 sm:p-12 backdrop-blur-sm text-center max-w-xl mx-auto">
+            <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-4">Subscription Activated!</h2>
+            <p className="text-gray-400 mb-8 leading-relaxed">
+              Your first month's rent has been successfully paid. Your 30-day billing cycle starts exactly right now ({getTodayDate()}) and your next payment will be due on <strong className="text-white">{getNextMonthDate()}</strong>.
+            </p>
+            <button 
+              type="button" 
+              onClick={() => window.location.reload()}
+              className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl border border-gray-700 transition-colors"
+            >
+              Back to Home
+            </button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
