@@ -25,6 +25,12 @@ export default function Home() {
         >
           Return Product / Discontinue Subscription
         </Link>
+        <Link
+          href="/closeForm"
+          className="px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700"
+        >
+          Close Account / Refund
+        </Link>
       </div>
     </div>
   );

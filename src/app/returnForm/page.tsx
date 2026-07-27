@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 export default function ReturnFormPage() {
   const [step, setStep] = useState(1);
@@ -15,6 +15,12 @@ export default function ReturnFormPage() {
   const [agreed, setAgreed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mobileParam = params.get("mobile");
+    if (mobileParam) setMobileNumber(mobileParam.replace(/\D/g, "").slice(-10));
+  }, []);
 
   const handleSendOtp = async () => {
     if (!mobileNumber || mobileNumber.length < 10) {

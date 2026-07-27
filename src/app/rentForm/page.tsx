@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 export default function RentalFormPage() {
   const [step, setStep] = useState(1);
@@ -10,11 +10,17 @@ export default function RentalFormPage() {
   const [otpError, setOtpError] = useState("");
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  
+
   // Customer & Plan States
   const [customer, setCustomer] = useState<any>(null);
   const [rentalPlanDuration, setRentalPlanDuration] = useState("12"); // 12 or 24
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mobileParam = params.get("mobile");
+    if (mobileParam) setMobileNumber(mobileParam.replace(/\D/g, "").slice(-10));
+  }, []);
 
   const handleSendOtp = async () => {
     if (!mobileNumber || mobileNumber.length < 10) {
