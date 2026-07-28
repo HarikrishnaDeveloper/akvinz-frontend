@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { API_URL } from "@/lib/api";
 
 export default function RentalFormPage() {
   const [step, setStep] = useState(1);
@@ -31,7 +32,7 @@ export default function RentalFormPage() {
     setIsSendingOtp(true);
     setOtpError("");
     try {
-      const res = await fetch("http://localhost:5000/api/send-otp", {
+      const res = await fetch(`${API_URL}/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobileNumber: "+91" + mobileNumber }),
@@ -55,7 +56,7 @@ export default function RentalFormPage() {
     setIsVerifyingOtp(true);
     setOtpError("");
     try {
-      const res = await fetch("http://localhost:5000/api/verify-otp", {
+      const res = await fetch(`${API_URL}/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobileNumber: "+91" + mobileNumber, code: otpCode }),
@@ -78,7 +79,7 @@ export default function RentalFormPage() {
 
   const fetchCustomerDetails = async (fullMobileNumber: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/customer/${encodeURIComponent(fullMobileNumber)}`);
+      const res = await fetch(`${API_URL}/customer/${encodeURIComponent(fullMobileNumber)}`);
       const data = await res.json();
       if (data.success) {
         setCustomer(data.customer);
@@ -119,7 +120,7 @@ export default function RentalFormPage() {
     try {
       const amount = getPrice();
 
-      const res = await fetch("http://localhost:5000/api/create-order", {
+      const res = await fetch(`${API_URL}/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount }),
@@ -142,7 +143,7 @@ export default function RentalFormPage() {
         order_id: data.order.id,
         handler: async function (response: any) {
           try {
-            const verifyRes = await fetch("http://localhost:5000/api/verify-rental-payment", {
+            const verifyRes = await fetch(`${API_URL}/verify-rental-payment`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({

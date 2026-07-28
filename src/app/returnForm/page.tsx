@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { API_URL } from "@/lib/api";
 
 export default function ReturnFormPage() {
   const [step, setStep] = useState(1);
@@ -31,7 +32,7 @@ export default function ReturnFormPage() {
     setIsSendingOtp(true);
     setOtpError("");
     try {
-      const res = await fetch("http://localhost:5000/api/send-otp", {
+      const res = await fetch(`${API_URL}/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobileNumber: "+91" + mobileNumber }),
@@ -55,7 +56,7 @@ export default function ReturnFormPage() {
     setIsVerifyingOtp(true);
     setOtpError("");
     try {
-      const res = await fetch("http://localhost:5000/api/verify-otp", {
+      const res = await fetch(`${API_URL}/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobileNumber: "+91" + mobileNumber, code: otpCode }),
@@ -77,7 +78,7 @@ export default function ReturnFormPage() {
 
   const fetchCustomerDetails = async (fullMobileNumber: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/customer/${encodeURIComponent(fullMobileNumber)}`);
+      const res = await fetch(`${API_URL}/customer/${encodeURIComponent(fullMobileNumber)}`);
       const data = await res.json();
       if (data.success) {
         setCustomer(data.customer);
@@ -94,7 +95,7 @@ export default function ReturnFormPage() {
     setIsSubmitting(true);
     setSubmitError("");
     try {
-      const res = await fetch("http://localhost:5000/api/subscription/return", {
+      const res = await fetch(`${API_URL}/subscription/return`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customerId: customer.id }),

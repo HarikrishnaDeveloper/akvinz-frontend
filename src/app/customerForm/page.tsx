@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { API_URL } from "@/lib/api";
 
 export default function CustomerFormPage() {
   const [step, setStep] = useState(1);
@@ -55,7 +56,7 @@ export default function CustomerFormPage() {
       const amountStr = getPrice().replace(/,/g, '');
       const amount = parseInt(amountStr);
 
-      const res = await fetch("http://localhost:5000/api/create-order", {
+      const res = await fetch(`${API_URL}/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount }),
@@ -78,7 +79,7 @@ export default function CustomerFormPage() {
         order_id: data.order.id,
         handler: async function (response: any) {
           try {
-            const verifyRes = await fetch("http://localhost:5000/api/verify-payment", {
+            const verifyRes = await fetch(`${API_URL}/verify-payment`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -129,7 +130,7 @@ export default function CustomerFormPage() {
     setIsSendingOtp(true);
     setOtpError("");
     try {
-      const res = await fetch("http://localhost:5000/api/send-otp", {
+      const res = await fetch(`${API_URL}/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobileNumber: "+91" + mobileNumber.replace(/\D/g, "") }),
@@ -156,7 +157,7 @@ export default function CustomerFormPage() {
     setIsVerifyingOtp(true);
     setOtpError("");
     try {
-      const res = await fetch("http://localhost:5000/api/verify-otp", {
+      const res = await fetch(`${API_URL}/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobileNumber: "+91" + mobileNumber.replace(/\D/g, ""), code: otpCode }),
@@ -199,7 +200,7 @@ export default function CustomerFormPage() {
       if (panFile) formData.append("panFile", panFile);
       if (residenceFile) formData.append("residenceFile", residenceFile);
 
-      const res = await fetch("http://localhost:5000/api/register", {
+      const res = await fetch(`${API_URL}/register`, {
         method: "POST",
         body: formData,
       });
