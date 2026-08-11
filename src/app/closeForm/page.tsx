@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { API_URL } from "@/lib/api";
+import { API_URL, downloadFile } from "@/lib/api";
 
 export default function CloseFormPage() {
   const [step, setStep] = useState(1);
@@ -102,6 +102,9 @@ export default function CloseFormPage() {
       });
       const data = await res.json();
       if (data.success) {
+        if (data.invoiceId) {
+          downloadFile(`${API_URL}/customer/${customer.id}/invoices/${data.invoiceId}/pdf`);
+        }
         setStep(3);
       } else {
         setSubmitError(data.message || "Failed to submit request");

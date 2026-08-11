@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { API_URL } from "@/lib/api";
+import { API_URL, downloadFile } from "@/lib/api";
 
 export default function RentalFormPage() {
   const [step, setStep] = useState(1);
@@ -28,7 +28,7 @@ export default function RentalFormPage() {
       alert("Please enter a valid 10-digit mobile number.");
       return;
     }
-    
+
     setIsSendingOtp(true);
     setOtpError("");
     try {
@@ -52,7 +52,7 @@ export default function RentalFormPage() {
 
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
-    
+
     setIsVerifyingOtp(true);
     setOtpError("");
     try {
@@ -62,7 +62,7 @@ export default function RentalFormPage() {
         body: JSON.stringify({ mobileNumber: "+91" + mobileNumber, code: otpCode }),
       });
       const data = await res.json();
-      
+
       if (data.success && data.verified) {
         setOtpVerified(true);
         // Fetch customer details
@@ -110,7 +110,7 @@ export default function RentalFormPage() {
   const handlePayment = async () => {
     setIsProcessingPayment(true);
     const isLoaded = await loadRazorpayScript();
-    
+
     if (!isLoaded) {
       alert("Razorpay SDK failed to load. Are you online?");
       setIsProcessingPayment(false);
@@ -125,9 +125,9 @@ export default function RentalFormPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount }),
       });
-      
+
       const data = await res.json();
-      
+
       if (!data.success) {
         alert("Failed to create order: " + data.message);
         setIsProcessingPayment(false);
@@ -135,11 +135,11 @@ export default function RentalFormPage() {
       }
 
       const options = {
-        key: "rzp_test_Swg0B14PfrFGrX", 
+        key: "rzp_test_Swg0B14PfrFGrX",
         amount: data.order.amount,
         currency: data.order.currency,
         name: "Akvinz",
-        description: `Monthly Rent - ${rentalPlanDuration} Months Plan`,
+        description: `Monthly Rent - ${rentalPlanDuration} Months Subscription`,
         order_id: data.order.id,
         handler: async function (response: any) {
           try {
@@ -156,8 +156,11 @@ export default function RentalFormPage() {
               }),
             });
             const verifyData = await verifyRes.json();
-            
+
             if (verifyData.success) {
+              if (verifyData.invoiceId) {
+                downloadFile(`${API_URL}/customer/${customer.id}/invoices/${verifyData.invoiceId}/pdf`);
+              }
               setStep(3);
             } else {
               alert("Payment verification failed!");
@@ -175,14 +178,14 @@ export default function RentalFormPage() {
           color: "#f26522"
         }
       };
-      
+
       const paymentObject = new (window as any).Razorpay(options);
       paymentObject.open();
-      
-      paymentObject.on('payment.failed', function (response: any){
+
+      paymentObject.on('payment.failed', function (response: any) {
         alert("Payment Failed: " + response.error.description);
       });
-      
+
     } catch (e) {
       alert("Error initiating payment");
     } finally {
@@ -233,13 +236,13 @@ export default function RentalFormPage() {
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <span className="text-gray-500 font-medium">+91</span>
                     </div>
-                    <input 
-                      type="tel" 
+                    <input
+                      type="tel"
                       value={mobileNumber}
                       onChange={(e) => setMobileNumber(e.target.value)}
                       disabled={otpVerified}
-                      className="block w-full pl-14 pr-4 py-3 bg-[#131724] border border-gray-700 rounded-xl focus:ring-1 focus:ring-[#f26522] focus:border-[#f26522] text-white transition-colors" 
-                      placeholder="Enter 10 digit number" 
+                      className="block w-full pl-14 pr-4 py-3 bg-[#131724] border border-gray-700 rounded-xl focus:ring-1 focus:ring-[#f26522] focus:border-[#f26522] text-white transition-colors"
+                      placeholder="Enter 10 digit number"
                     />
                   </div>
                   {!otpVerified && (
@@ -256,11 +259,11 @@ export default function RentalFormPage() {
 
                 {otpSent && !otpVerified && (
                   <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}
-                      placeholder="Enter 6-digit OTP" 
+                      placeholder="Enter 6-digit OTP"
                       className="block w-full sm:w-1/2 px-4 py-3 bg-[#131724] border border-gray-700 rounded-xl text-center tracking-[0.5em] focus:ring-1 focus:ring-[#f26522] text-white"
                       maxLength={6}
                     />
@@ -274,14 +277,14 @@ export default function RentalFormPage() {
                     </button>
                   </div>
                 )}
-                
+
                 {otpError && <p className="mt-2 text-sm text-red-400">{otpError}</p>}
                 {otpVerified && <p className="mt-2 text-sm text-green-400 flex items-center gap-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg> Mobile Verified successfully!</p>}
               </div>
 
               {otpVerified && customer && (
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setStep(2)}
                   className="w-full bg-[#f26522] hover:bg-[#e05a1e] text-white font-semibold py-4 px-4 rounded-xl shadow-lg shadow-[#f26522]/20 flex justify-center items-center gap-2 transition-all"
                 >
@@ -295,7 +298,7 @@ export default function RentalFormPage() {
 
         {step === 2 && customer && (
           <div className="bg-[#1a1f30]/80 border border-gray-700/50 rounded-2xl p-6 sm:p-8 backdrop-blur-sm space-y-8 max-w-xl mx-auto">
-            
+
             {/* Customer Summary */}
             <div className="bg-[#131724] p-5 rounded-xl border border-gray-700">
               <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Customer Details</h3>
@@ -323,11 +326,11 @@ export default function RentalFormPage() {
               <h3 className="text-lg font-semibold text-white mb-4">Your Rental Plan</h3>
               <div className="bg-[#f26522]/10 border-2 border-[#f26522] rounded-xl p-4 flex items-center justify-between">
                 <div>
-                  <span className="block text-gray-400 mb-1 text-sm">{rentalPlanDuration} Months Plan</span>
+                  <span className="block text-gray-400 mb-1 text-sm">{rentalPlanDuration} Months Subscription</span>
                   <span className="block text-2xl font-bold text-white">₹{getPrice()}<span className="text-sm font-normal text-gray-500">/mo</span></span>
                 </div>
                 <div className="text-[#f26522]">
-                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
                 </div>
               </div>
             </div>
@@ -352,8 +355,8 @@ export default function RentalFormPage() {
             </div>
 
             <div className="pt-2">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={handlePayment}
                 disabled={isProcessingPayment}
                 className="w-full bg-[#f26522] hover:bg-[#e05a1e] text-white font-semibold py-4 px-4 rounded-xl shadow-lg shadow-[#f26522]/20 flex justify-center items-center gap-2 transition-all disabled:opacity-50"
@@ -378,8 +381,8 @@ export default function RentalFormPage() {
             <p className="text-gray-400 mb-8 leading-relaxed">
               Your first month's rent has been successfully paid. Your 30-day billing cycle starts exactly right now ({getTodayDate()}) and your next payment will be due on <strong className="text-white">{getNextMonthDate()}</strong>.
             </p>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => window.location.reload()}
               className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl border border-gray-700 transition-colors"
             >

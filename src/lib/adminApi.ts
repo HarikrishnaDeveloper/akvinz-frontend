@@ -18,10 +18,13 @@ export function clearAdminToken() {
 
 export async function adminFetch(path: string, options: RequestInit = {}) {
   const token = getAdminToken();
+  // FormData bodies (file uploads) must not get a manual Content-Type — the
+  // browser sets one with the multipart boundary itself.
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
