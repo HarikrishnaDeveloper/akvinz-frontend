@@ -193,17 +193,24 @@ function DueDateCell({ customer }: { customer: Customer }) {
   const isOverdue = isActive && daysLeft < 0;
   const isDueSoon = isActive && daysLeft >= 0 && daysLeft <= 3;
 
+  let daysLabel: string;
+  if (isOverdue) {
+    daysLabel = `Day ${Math.abs(daysLeft)} overdue`;
+  } else if (daysLeft === 0) {
+    daysLabel = "Due today";
+  } else if (daysLeft > 0) {
+    daysLabel = `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`;
+  } else {
+    // Not currently active, but the plan's end date has already passed.
+    daysLabel = `Day ${Math.abs(daysLeft)} overdue`;
+  }
+
   return (
     <div>
       <div className={isOverdue ? "text-red-400 font-medium" : isDueSoon ? "text-yellow-400 font-medium" : "text-gray-300"}>
-        {formatDateDMY(dueDay)}
+        {daysLabel}
       </div>
-      {isOverdue && (
-        <div className="text-xs text-red-500">Day {Math.abs(daysLeft)} overdue</div>
-      )}
-      {isDueSoon && (
-        <div className="text-xs text-yellow-500">{daysLeft === 0 ? "Due today" : `Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}</div>
-      )}
+      <div className="text-xs text-gray-500">{formatDateDMY(dueDay)}</div>
     </div>
   );
 }
