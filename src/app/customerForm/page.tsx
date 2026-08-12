@@ -6,6 +6,7 @@ export default function CustomerFormPage() {
   const permanentDocOptions = ["EB Bill", "Gas Bill", "House Tax Bill"];
   const rentDocOptions = ["Rental Agreement", "Student ID", "Working Staff ID"];
 
+  const [openContactCard, setOpenContactCard] = useState<"call" | "email" | null>(null);
   const [step, setStep] = useState(1);
   const [planDuration, setPlanDuration] = useState("12");
   const [houseType, setHouseType] = useState("rent");
@@ -13,6 +14,9 @@ export default function CustomerFormPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [customerId, setCustomerId] = useState("");
+  const [invoiceId, setInvoiceId] = useState("");
+  const [isDownloadingReceipt, setIsDownloadingReceipt] = useState(false);
+  const [receiptError, setReceiptError] = useState("");
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
   const [city, setCity] = useState("");
@@ -34,6 +38,7 @@ export default function CustomerFormPage() {
   const [otpError, setOtpError] = useState("");
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [mobileAlreadyRegistered, setMobileAlreadyRegistered] = useState(false);
 
   // Payment State
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -42,7 +47,7 @@ export default function CustomerFormPage() {
   // so partial entries are not lost if they abandon the form before submitting.
   // A `?draft=<id>` link (generated from the admin dashboard) resumes that
   // specific draft instead of the one tracked in this browser's localStorage.
-  const [draftId] = useState(() => {
+  const [draftId, setDraftId] = useState(() => {
     if (typeof window === "undefined") return "";
     const fromLink = new URLSearchParams(window.location.search).get("draft");
     if (fromLink) {
@@ -109,7 +114,24 @@ export default function CustomerFormPage() {
           houseType,
           residenceDocType,
         }),
-      }).catch(() => { });
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.code === "CUSTOMER_EXISTS") {
+            setMobileAlreadyRegistered(true);
+            return;
+          }
+          setMobileAlreadyRegistered(false);
+          // The backend may have merged this into a pre-existing draft for
+          // the same mobile number (resumed from another device/session) —
+          // adopt that id so future autosaves update the same row instead
+          // of recreating the one we just abandoned.
+          if (data.resumedDraftId && data.resumedDraftId !== draftId) {
+            setDraftId(data.resumedDraftId);
+            localStorage.setItem("akvinz_draft_id", data.resumedDraftId);
+          }
+        })
+        .catch(() => { });
     }, 800);
 
     return () => clearTimeout(timer);
@@ -166,7 +188,7 @@ export default function CustomerFormPage() {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                customerId,
+                draftId,
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
@@ -175,17 +197,23 @@ export default function CustomerFormPage() {
             const verifyData = await verifyRes.json();
 
             if (verifyData.success) {
+              // Only now does this person actually become a Customer —
+              // registration alone (or a cancelled/failed payment) never
+              // creates one, it just leaves the Draft in place.
+              setCustomerId(verifyData.customerId);
+              localStorage.removeItem("akvinz_draft_id");
               if (verifyData.invoiceId) {
-                downloadFile(`${API_URL}/customer/${customerId}/invoices/${verifyData.invoiceId}/pdf`).catch((e) =>
+                setInvoiceId(verifyData.invoiceId);
+                downloadFile(`${API_URL}/customer/${verifyData.customerId}/invoices/${verifyData.invoiceId}/pdf`).catch((e) =>
                   console.error("Receipt download failed:", e)
                 );
               }
               setStep(3);
             } else {
-              alert("Payment verification failed!");
+              alert("Payment verification failed! " + (verifyData.message || "You can retry payment; your details are saved as a draft."));
             }
           } catch (e) {
-            alert("Error verifying payment.");
+            alert("Error verifying payment. Your details are saved as a draft — you can retry payment.");
           }
         },
         prefill: {
@@ -252,6 +280,36 @@ export default function CustomerFormPage() {
       });
       const data = await res.json();
       if (data.verified) {
+        const existingCustomerRes = await fetch(`${API_URL}/customer/${mobileNumber}`);
+        if (existingCustomerRes.ok) {
+          setMobileAlreadyRegistered(true);
+          return;
+        }
+
+        // Resume an in-progress draft for this number from a previous
+        // attempt (different device/browser, or cleared local storage)
+        // instead of letting a second draft pile up for the same person.
+        const draftRes = await fetch(`${API_URL}/customer/draft/by-mobile/${mobileNumber}`);
+        if (draftRes.ok) {
+          const draftData = await draftRes.json();
+          const d = draftData.draft;
+          if (d && d.id !== draftId) {
+            if (d.fullName) setFullName(d.fullName);
+            if (d.email) setEmail(d.email);
+            if (d.addressLine1) setAddressLine1(d.addressLine1);
+            if (d.addressLine2) setAddressLine2(d.addressLine2);
+            if (d.city) setCity(d.city);
+            if (d.state) setStateName(d.state);
+            if (d.pincode) setPincode(d.pincode);
+            if (d.planDuration) setPlanDuration(String(d.planDuration));
+            if (d.houseType) setHouseType(d.houseType);
+            if (d.residenceDocType) setResidenceDocType(d.residenceDocType);
+            setDraftId(d.id);
+            localStorage.setItem("akvinz_draft_id", d.id);
+            setResumedDraft(true);
+          }
+        }
+
         setOtpVerified(true);
         setOtpError("");
       } else {
@@ -273,6 +331,7 @@ export default function CustomerFormPage() {
 
     try {
       const formData = new FormData();
+      formData.append("draftId", draftId);
       formData.append("fullName", fullName);
       formData.append("mobileNumber", mobileNumber);
       formData.append("email", email);
@@ -298,14 +357,32 @@ export default function CustomerFormPage() {
 
       const data = await res.json();
       if (data.success) {
-        setCustomerId(data.customerId);
-        localStorage.removeItem("akvinz_draft_id");
+        // This only finalizes the Draft with the uploaded documents — no
+        // Customer exists yet. That only happens once payment succeeds, so
+        // a cancelled/abandoned payment here just leaves a followable Draft.
+        if (data.draftId && data.draftId !== draftId) {
+          setDraftId(data.draftId);
+          localStorage.setItem("akvinz_draft_id", data.draftId);
+        }
         setStep(2);
       } else {
         alert("Registration failed: " + data.message);
       }
     } catch (error) {
       alert("Error saving details");
+    }
+  };
+
+  const handleDownloadReceipt = async () => {
+    if (!invoiceId) return;
+    setIsDownloadingReceipt(true);
+    setReceiptError("");
+    try {
+      await downloadFile(`${API_URL}/customer/${customerId}/invoices/${invoiceId}/pdf`);
+    } catch (e) {
+      setReceiptError("Couldn't download the receipt. Please try again.");
+    } finally {
+      setIsDownloadingReceipt(false);
     }
   };
 
@@ -330,16 +407,74 @@ export default function CustomerFormPage() {
           <img src="/logo-footer.svg" alt="AKVINZ Logo" className="h-8 object-contain" />
         </div>
         <div className="flex space-x-2">
-          <a href="tel:+918110016161" className="p-2 bg-[#f26522]/10 text-[#f26522] rounded-full hover:bg-[#f26522]/20 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
-            </svg>
-          </a>
-          <a href="mailto:Customerconnect@akvinz.com" className="p-2 bg-gray-800 text-gray-400 rounded-full hover:text-white transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-            </svg>
-          </a>
+          {openContactCard && (
+            <div
+              className="hidden sm:block fixed inset-0 z-10"
+              onClick={() => setOpenContactCard(null)}
+            />
+          )}
+
+          <div className="relative">
+            <a
+              href="tel:+918110016161"
+              className="sm:hidden p-2 bg-[#f26522]/10 text-[#f26522] rounded-full hover:bg-[#f26522]/20 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+              </svg>
+            </a>
+            <button
+              type="button"
+              onClick={() => setOpenContactCard((v) => (v === "call" ? null : "call"))}
+              className="hidden sm:inline-flex p-2 bg-[#f26522]/10 text-[#f26522] rounded-full hover:bg-[#f26522]/20 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+              </svg>
+            </button>
+            {openContactCard === "call" && (
+              <div className="hidden sm:block absolute right-0 top-full mt-2 w-56 bg-[#1a1f30] border border-gray-700/50 rounded-xl shadow-lg p-4 z-20">
+                <p className="text-xs text-gray-500 mb-1">Call us</p>
+                <a
+                  href="tel:+918110016161"
+                  className="text-sm text-white font-medium hover:text-[#f26522] transition-colors"
+                >
+                  +91 81100 16161
+                </a>
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <a
+              href="mailto:Customerconnect@akvinz.com"
+              className="sm:hidden p-2 bg-gray-800 text-gray-400 rounded-full hover:text-white transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+              </svg>
+            </a>
+            <button
+              type="button"
+              onClick={() => setOpenContactCard((v) => (v === "email" ? null : "email"))}
+              className="hidden sm:inline-flex p-2 bg-gray-800 text-gray-400 rounded-full hover:text-white transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+              </svg>
+            </button>
+            {openContactCard === "email" && (
+              <div className="hidden sm:block absolute right-0 top-full mt-2 w-64 bg-[#1a1f30] border border-gray-700/50 rounded-xl shadow-lg p-4 z-20">
+                <p className="text-xs text-gray-500 mb-1">Email us</p>
+                <a
+                  href="mailto:Customerconnect@akvinz.com"
+                  className="text-sm text-white font-medium hover:text-[#f26522] transition-colors break-all"
+                >
+                  Customerconnect@akvinz.com
+                </a>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -468,7 +603,7 @@ export default function CustomerFormPage() {
                         <button
                           type="button"
                           onClick={handleSendOtp}
-                          disabled={isSendingOtp || mobileNumber.length < 10}
+                          disabled={isSendingOtp || mobileNumber.length < 10 || mobileAlreadyRegistered}
                           className="whitespace-nowrap px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl border border-gray-700 transition-colors disabled:opacity-50"
                         >
                           {isSendingOtp ? "Sending..." : (otpSent ? "Resend OTP" : "Send OTP")}
@@ -506,6 +641,12 @@ export default function CustomerFormPage() {
 
                     {otpError && (
                       <p className="mt-2 text-sm text-red-400">{otpError}</p>
+                    )}
+
+                    {mobileAlreadyRegistered && !otpVerified && (
+                      <p className="mt-2 text-sm text-red-400">
+                        This mobile number is already registered. Please use the rent or manage-subscription link instead.
+                      </p>
                     )}
                   </div>
 
@@ -842,13 +983,26 @@ export default function CustomerFormPage() {
             <p className="text-gray-400 mb-8">
               Thank you for choosing Akvinz. Your payment has been successfully received and your registration is complete.
             </p>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl border border-gray-700 transition-colors"
-            >
-              Back to Home
-            </button>
+            {receiptError && <p className="text-red-400 text-sm mb-4">{receiptError}</p>}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {invoiceId && (
+                <button
+                  type="button"
+                  onClick={handleDownloadReceipt}
+                  disabled={isDownloadingReceipt}
+                  className="px-8 py-3 bg-[#f26522] hover:bg-[#d9591c] disabled:opacity-60 text-white font-medium rounded-xl transition-colors"
+                >
+                  {isDownloadingReceipt ? "Downloading..." : "Download Receipt"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl border border-gray-700 transition-colors"
+              >
+                Back to Home
+              </button>
+            </div>
           </div>
         )}
       </main>

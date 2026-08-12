@@ -246,6 +246,7 @@ export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<Customer | null>(null);
+  const [selectedDraft, setSelectedDraft] = useState<Draft | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [copiedLink, setCopiedLink] = useState("");
@@ -1005,6 +1006,17 @@ export default function AdminDashboardPage() {
                       </td>
                       <td className="py-3 pr-4 text-gray-400">{new Date(d.updatedAt).toLocaleString()}</td>
                       <td className="py-3 pr-4 text-right space-x-3 whitespace-nowrap">
+                        <button
+                          onClick={() => setSelectedDraft(d)}
+                          title="View draft details"
+                          aria-label="View draft details"
+                          className="inline-flex align-middle text-gray-400 hover:text-white transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </button>
                         <button onClick={() => copyDraftLink(d)} className="text-[#f26522] hover:underline">
                           {copiedDraftId === d.id ? "Copied!" : "Copy Continue Link"}
                         </button>
@@ -1686,6 +1698,85 @@ export default function AdminDashboardPage() {
                 className="px-4 py-2 text-sm bg-[#f26522] hover:bg-[#e05a1e] rounded-lg font-medium disabled:opacity-50"
               >
                 {isSaving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedDraft && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center px-4 z-50">
+          <div className="bg-[#1a1f30] border border-gray-700/50 rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-800 shrink-0">
+              <div>
+                <h2 className="text-lg font-bold">{selectedDraft.fullName || "Unnamed Draft"}</h2>
+                <p className="text-gray-400 text-sm mt-0.5">
+                  {selectedDraft.email || "-"} · {selectedDraft.mobileNumber || "-"}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedDraft(null)}
+                aria-label="Close"
+                className="text-gray-400 hover:text-white shrink-0"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4 text-sm">
+              <div>
+                <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Address</p>
+                <p className="text-gray-200">
+                  {selectedDraft.addressLine1 || "-"}
+                  {selectedDraft.addressLine2 ? `, ${selectedDraft.addressLine2}` : ""}
+                </p>
+                <p className="text-gray-200">
+                  {[selectedDraft.city, selectedDraft.state, selectedDraft.pincode].filter(Boolean).join(", ") || "-"}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Plan</p>
+                  <p className="text-gray-200">{selectedDraft.planDuration ? `${selectedDraft.planDuration} months` : "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">House Type</p>
+                  <p className="text-gray-200">{selectedDraft.houseType || "-"}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Residence Document</p>
+                {selectedDraft.residenceDocType ? (
+                  <span className="px-2 py-1 rounded-lg text-xs font-medium bg-blue-500/20 text-blue-400">
+                    {selectedDraft.residenceDocType}
+                  </span>
+                ) : (
+                  <span className="text-gray-600 text-xs">Not selected</span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Started</p>
+                  <p className="text-gray-200">{new Date(selectedDraft.createdAt).toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Last Updated</p>
+                  <p className="text-gray-200">{new Date(selectedDraft.updatedAt).toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-800 shrink-0">
+              <button
+                onClick={() => setSelectedDraft(null)}
+                className="px-4 py-2 text-sm text-gray-300 hover:text-white"
+              >
+                Close
               </button>
             </div>
           </div>

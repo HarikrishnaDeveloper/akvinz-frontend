@@ -16,6 +16,9 @@ export default function CloseFormPage() {
   const [agreed, setAgreed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [invoiceId, setInvoiceId] = useState("");
+  const [isDownloadingReceipt, setIsDownloadingReceipt] = useState(false);
+  const [receiptError, setReceiptError] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -103,6 +106,7 @@ export default function CloseFormPage() {
       const data = await res.json();
       if (data.success) {
         if (data.invoiceId) {
+          setInvoiceId(data.invoiceId);
           downloadFile(`${API_URL}/customer/${customer.id}/invoices/${data.invoiceId}/pdf`).catch((e) =>
             console.error("Receipt download failed:", e)
           );
@@ -115,6 +119,19 @@ export default function CloseFormPage() {
       setSubmitError("Error connecting to server");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDownloadReceipt = async () => {
+    if (!invoiceId || !customer) return;
+    setIsDownloadingReceipt(true);
+    setReceiptError("");
+    try {
+      await downloadFile(`${API_URL}/customer/${customer.id}/invoices/${invoiceId}/pdf`);
+    } catch (e) {
+      setReceiptError("Couldn't download the receipt. Please try again.");
+    } finally {
+      setIsDownloadingReceipt(false);
     }
   };
 
@@ -313,13 +330,26 @@ export default function CloseFormPage() {
               Your account has been closed and your refund has been confirmed. Our team will process the payment to
               your original payment method shortly.
             </p>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl border border-gray-700 transition-colors"
-            >
-              Back to Home
-            </button>
+            {receiptError && <p className="text-red-400 text-sm mb-4">{receiptError}</p>}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {invoiceId && (
+                <button
+                  type="button"
+                  onClick={handleDownloadReceipt}
+                  disabled={isDownloadingReceipt}
+                  className="px-8 py-3 bg-[#f26522] hover:bg-[#d9591c] disabled:opacity-60 text-white font-medium rounded-xl transition-colors"
+                >
+                  {isDownloadingReceipt ? "Downloading..." : "Download Receipt"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl border border-gray-700 transition-colors"
+              >
+                Back to Home
+              </button>
+            </div>
           </div>
         )}
       </main>

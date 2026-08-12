@@ -16,6 +16,9 @@ export default function RentalFormPage() {
   const [customer, setCustomer] = useState<any>(null);
   const [rentalPlanDuration, setRentalPlanDuration] = useState("12"); // 12 or 24
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [invoiceId, setInvoiceId] = useState("");
+  const [isDownloadingReceipt, setIsDownloadingReceipt] = useState(false);
+  const [receiptError, setReceiptError] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -107,6 +110,19 @@ export default function RentalFormPage() {
     return rentalPlanDuration === "12" ? 2 : 1;
   };
 
+  const handleDownloadReceipt = async () => {
+    if (!invoiceId || !customer) return;
+    setIsDownloadingReceipt(true);
+    setReceiptError("");
+    try {
+      await downloadFile(`${API_URL}/customer/${customer.id}/invoices/${invoiceId}/pdf`);
+    } catch (e) {
+      setReceiptError("Couldn't download the receipt. Please try again.");
+    } finally {
+      setIsDownloadingReceipt(false);
+    }
+  };
+
   const handlePayment = async () => {
     setIsProcessingPayment(true);
     const isLoaded = await loadRazorpayScript();
@@ -159,6 +175,7 @@ export default function RentalFormPage() {
 
             if (verifyData.success) {
               if (verifyData.invoiceId) {
+                setInvoiceId(verifyData.invoiceId);
                 downloadFile(`${API_URL}/customer/${customer.id}/invoices/${verifyData.invoiceId}/pdf`).catch((e) =>
                   console.error("Receipt download failed:", e)
                 );
@@ -383,13 +400,26 @@ export default function RentalFormPage() {
             <p className="text-gray-400 mb-8 leading-relaxed">
               Your first month's rent has been successfully paid. Your 30-day billing cycle starts exactly right now ({getTodayDate()}) and your next payment will be due on <strong className="text-white">{getNextMonthDate()}</strong>.
             </p>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl border border-gray-700 transition-colors"
-            >
-              Back to Home
-            </button>
+            {receiptError && <p className="text-red-400 text-sm mb-4">{receiptError}</p>}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {invoiceId && (
+                <button
+                  type="button"
+                  onClick={handleDownloadReceipt}
+                  disabled={isDownloadingReceipt}
+                  className="px-8 py-3 bg-[#f26522] hover:bg-[#d9591c] disabled:opacity-60 text-white font-medium rounded-xl transition-colors"
+                >
+                  {isDownloadingReceipt ? "Downloading..." : "Download Receipt"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl border border-gray-700 transition-colors"
+              >
+                Back to Home
+              </button>
+            </div>
           </div>
         )}
       </main>
