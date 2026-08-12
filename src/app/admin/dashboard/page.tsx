@@ -76,6 +76,13 @@ interface PaymentLinkRecord {
   createdAt: string;
 }
 
+interface PayoutRecord {
+  id: string;
+  amount: number;
+  reason: string;
+  createdAt: string;
+}
+
 interface ReturnEvent {
   id: string;
   step: string;
@@ -246,7 +253,7 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
 const CUSTOMER_MODAL_SECTIONS: { key: string; label: string }[] = [
   { key: "details", label: "Customer Details" },
   { key: "quickLinks", label: "Quick Links" },
-  { key: "paymentLink", label: "Payment Link" },
+  { key: "transactions", label: "Money Transactions" },
   { key: "documents", label: "Documents" },
   { key: "receipts", label: "Receipts" },
   { key: "product", label: "Company Assets" },
@@ -301,6 +308,13 @@ export default function AdminDashboardPage() {
   const [paymentLinkHistoryError, setPaymentLinkHistoryError] = useState("");
   const [copiedPaymentLinkId, setCopiedPaymentLinkId] = useState("");
   const [markingPaidId, setMarkingPaidId] = useState("");
+  const [transactionMode, setTransactionMode] = useState<"pay" | "collect">("collect");
+  const [payoutAmount, setPayoutAmount] = useState("");
+  const [payoutReason, setPayoutReason] = useState("");
+  const [recordingPayout, setRecordingPayout] = useState(false);
+  const [payoutHistory, setPayoutHistory] = useState<PayoutRecord[]>([]);
+  const [payoutHistoryLoading, setPayoutHistoryLoading] = useState(false);
+  const [payoutHistoryError, setPayoutHistoryError] = useState("");
   const [newPlanDuration, setNewPlanDuration] = useState("");
   const [planChangeAmount, setPlanChangeAmount] = useState("");
   const [planChangeTopUpUrl, setPlanChangeTopUpUrl] = useState("");
@@ -515,6 +529,35 @@ export default function AdminDashboardPage() {
     loadPaymentLinkHistory(selected.id);
   }, [selected, loadPaymentLinkHistory]);
 
+  const loadPayoutHistory = useCallback((customerId: string) => {
+    setPayoutHistoryLoading(true);
+    setPayoutHistoryError("");
+    adminFetch(`/api/admin/customers/${customerId}/payouts`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setPayoutHistory(data.payouts);
+        } else {
+          setPayoutHistory([]);
+          setPayoutHistoryError(data.message || "Failed to load payout history");
+        }
+      })
+      .catch(() => {
+        setPayoutHistory([]);
+        setPayoutHistoryError("Error connecting to server");
+      })
+      .finally(() => setPayoutHistoryLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!selected) {
+      setPayoutHistory([]);
+      setPayoutHistoryError("");
+      return;
+    }
+    loadPayoutHistory(selected.id);
+  }, [selected, loadPayoutHistory]);
+
   useEffect(() => {
     setShowReturnHistory(false);
     setDefectImages([null, null, null]);
@@ -683,6 +726,38 @@ export default function AdminDashboardPage() {
       setError("Error connecting to server");
     } finally {
       setGeneratingPaymentLink(false);
+    }
+  };
+
+  const recordPayout = async () => {
+    if (!selected) return;
+    const amount = Number(payoutAmount);
+    if (!amount || amount <= 0) {
+      setError("Enter a valid amount");
+      return;
+    }
+    if (!payoutReason.trim()) {
+      setError("Enter a reason");
+      return;
+    }
+    setRecordingPayout(true);
+    try {
+      const res = await adminFetch(`/api/admin/customers/${selected.id}/payout`, {
+        method: "POST",
+        body: JSON.stringify({ amount, reason: payoutReason.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPayoutAmount("");
+        setPayoutReason("");
+        loadPayoutHistory(selected.id);
+      } else {
+        setError(data.message || "Failed to record payment");
+      }
+    } catch {
+      setError("Error connecting to server");
+    } finally {
+      setRecordingPayout(false);
     }
   };
 
@@ -1262,104 +1337,184 @@ export default function AdminDashboardPage() {
                 </>
               )}
 
-              {activeSection === "paymentLink" && (
+              {activeSection === "transactions" && (
                 <>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    value={paymentLinkAmount}
-                    onChange={(e) => setPaymentLinkAmount(e.target.value)}
-                    placeholder="e.g. 499"
-                    className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                  />
+                <div className="flex gap-2 mb-4">
                   <button
                     type="button"
-                    onClick={generatePaymentLink}
-                    disabled={generatingPaymentLink}
-                    className="px-3 py-2 text-xs whitespace-nowrap bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50"
+                    onClick={() => setTransactionMode("pay")}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                      transactionMode === "pay"
+                        ? "bg-[#f26522]/10 border-[#f26522]/40 text-[#f26522]"
+                        : "bg-[#131724] border-gray-700 text-gray-300 hover:text-white hover:border-gray-500"
+                    }`}
                   >
-                    {generatingPaymentLink ? "Generating..." : "Generate Link"}
+                    Pay Customer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTransactionMode("collect")}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                      transactionMode === "collect"
+                        ? "bg-[#f26522]/10 border-[#f26522]/40 text-[#f26522]"
+                        : "bg-[#131724] border-gray-700 text-gray-300 hover:text-white hover:border-gray-500"
+                    }`}
+                  >
+                    Collect From Customer
                   </button>
                 </div>
-                {paymentLinkUrl && (
-                  <div className="flex items-center justify-between gap-2 mt-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs">
-                    <span className="text-gray-300 truncate">{paymentLinkUrl}</span>
+
+                {transactionMode === "pay" ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Amount</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={payoutAmount}
+                        onChange={(e) => setPayoutAmount(e.target.value)}
+                        placeholder="e.g. 100"
+                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Reason</label>
+                      <input
+                        type="text"
+                        value={payoutReason}
+                        onChange={(e) => setPayoutReason(e.target.value)}
+                        placeholder="e.g. Deposit refund"
+                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                      />
+                    </div>
                     <button
                       type="button"
-                      onClick={copyPaymentLink}
-                      className="text-[#f26522] hover:underline shrink-0"
+                      onClick={recordPayout}
+                      disabled={recordingPayout}
+                      className="w-full px-3 py-2 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50"
                     >
-                      {copiedPaymentLink ? "Copied!" : "Copy Link"}
+                      {recordingPayout ? "Recording..." : "Record Payment"}
                     </button>
                   </div>
-                )}
-                <p className="text-xs text-gray-500 mt-2">Link expires 1 hour after generation.</p>
-
-                <div className="mt-3">
-                  <p className="text-xs text-gray-500 mb-2">History</p>
-                  {paymentLinkHistoryLoading ? (
-                    <p className="text-xs text-gray-500">Loading...</p>
-                  ) : paymentLinkHistoryError ? (
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs text-red-400">{paymentLinkHistoryError}</p>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        value={paymentLinkAmount}
+                        onChange={(e) => setPaymentLinkAmount(e.target.value)}
+                        placeholder="e.g. 499"
+                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                      />
                       <button
                         type="button"
-                        onClick={() => selected && loadPaymentLinkHistory(selected.id)}
+                        onClick={generatePaymentLink}
+                        disabled={generatingPaymentLink}
+                        className="px-3 py-2 text-xs whitespace-nowrap bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50"
+                      >
+                        {generatingPaymentLink ? "Generating..." : "Generate Payment Link"}
+                      </button>
+                    </div>
+                    {paymentLinkUrl && (
+                      <div className="flex items-center justify-between gap-2 mt-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs">
+                        <span className="text-gray-300 truncate">{paymentLinkUrl}</span>
+                        <button
+                          type="button"
+                          onClick={copyPaymentLink}
+                          className="text-[#f26522] hover:underline shrink-0"
+                        >
+                          {copiedPaymentLink ? "Copied!" : "Copy Link"}
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500 mt-2">Link expires 1 hour after generation.</p>
+                  </>
+                )}
+
+                <div className="mt-4">
+                  <p className="text-xs text-gray-500 mb-2">Transaction History</p>
+                  {payoutHistoryLoading || paymentLinkHistoryLoading ? (
+                    <p className="text-xs text-gray-500">Loading...</p>
+                  ) : payoutHistoryError || paymentLinkHistoryError ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-red-400">{payoutHistoryError || paymentLinkHistoryError}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!selected) return;
+                          loadPayoutHistory(selected.id);
+                          loadPaymentLinkHistory(selected.id);
+                        }}
                         className="text-xs text-[#f26522] hover:underline shrink-0"
                       >
                         Retry
                       </button>
                     </div>
-                  ) : paymentLinkHistory.length === 0 ? (
-                    <p className="text-xs text-gray-500">No payment links generated yet.</p>
+                  ) : payoutHistory.length === 0 && paymentLinkHistory.length === 0 ? (
+                    <p className="text-xs text-gray-500">No transactions yet.</p>
                   ) : (
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {paymentLinkHistory.map((record) => {
-                        const expired = new Date(record.expireBy) < new Date();
-                        const statusLabel =
-                          record.status === "PAID" ? "Paid" : expired ? "Expired" : "Awaiting Payment";
-                        const statusColor =
-                          record.status === "PAID"
-                            ? "text-green-400"
-                            : expired
-                            ? "text-gray-500"
-                            : "text-yellow-400";
-                        return (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {[
+                        ...payoutHistory.map((p) => ({
+                          key: `payout-${p.id}`,
+                          direction: "Admin → Customer",
+                          amount: p.amount,
+                          detail: p.reason,
+                          statusLabel: "Completed",
+                          statusColor: "text-green-400",
+                          date: new Date(p.createdAt),
+                          link: null as PaymentLinkRecord | null,
+                        })),
+                        ...paymentLinkHistory.map((r) => {
+                          const expired = new Date(r.expireBy) < new Date();
+                          const statusLabel = r.status === "PAID" ? "Paid" : expired ? "Expired" : "Pending";
+                          const statusColor = r.status === "PAID" ? "text-green-400" : expired ? "text-gray-500" : "text-yellow-400";
+                          return {
+                            key: `link-${r.id}`,
+                            direction: "Customer → Admin",
+                            amount: r.amount,
+                            detail: "Payment Link",
+                            statusLabel,
+                            statusColor,
+                            date: new Date(r.status === "PAID" && r.paidAt ? r.paidAt : r.createdAt),
+                            link: r,
+                          };
+                        }),
+                      ]
+                        .sort((a, b) => b.date.getTime() - a.date.getTime())
+                        .map((row) => (
                           <div
-                            key={record.id}
+                            key={row.key}
                             className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs"
                           >
                             <div>
                               <div className="text-gray-200 font-medium">
-                                ₹{record.amount} <span className={statusColor}>· {statusLabel}</span>
+                                {row.direction} · ₹{row.amount} <span className={row.statusColor}>· {row.statusLabel}</span>
                               </div>
                               <div className="text-gray-500">
-                                {record.status === "PAID" && record.paidAt
-                                  ? `Paid ${formatDateTimeDMY(record.paidAt)}`
-                                  : `Generated ${formatDateTimeDMY(record.createdAt)}`}
+                                {row.detail} · {formatDateTimeDMY(row.date)}
                               </div>
                             </div>
-                            {record.status !== "PAID" && (
+                            {row.link && row.link.status !== "PAID" && (
                               <div className="flex items-center gap-3 shrink-0">
                                 <button
-                                  onClick={() => copyHistoryLink(record)}
+                                  onClick={() => copyHistoryLink(row.link as PaymentLinkRecord)}
                                   className="text-[#f26522] hover:underline"
                                 >
-                                  {copiedPaymentLinkId === record.id ? "Copied!" : "Copy"}
+                                  {copiedPaymentLinkId === row.link.id ? "Copied!" : "Copy"}
                                 </button>
                                 <button
-                                  onClick={() => markLinkAsPaid(record)}
-                                  disabled={markingPaidId === record.id}
+                                  onClick={() => markLinkAsPaid(row.link as PaymentLinkRecord)}
+                                  disabled={markingPaidId === row.link.id}
                                   className="text-green-400 hover:underline disabled:opacity-50"
                                 >
-                                  {markingPaidId === record.id ? "Marking..." : "Mark as Paid"}
+                                  {markingPaidId === row.link.id ? "Marking..." : "Mark as Paid"}
                                 </button>
                               </div>
                             )}
                           </div>
-                        );
-                      })}
+                        ))}
                     </div>
                   )}
                 </div>
