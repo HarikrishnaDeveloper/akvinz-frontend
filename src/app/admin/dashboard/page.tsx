@@ -1845,6 +1845,21 @@ export default function AdminDashboardPage() {
                                 <span className="px-2 py-0.5 rounded-lg text-xs font-medium bg-gray-500/20 text-gray-400">Not started</span>
                               )}
                             </div>
+                            {latest && latest.defectImageUrls.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mb-2">
+                                {latest.defectImageUrls.map((url, i) => (
+                                  <a
+                                    key={url}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-2 py-1 rounded-lg text-xs bg-[#1a1f30] border border-gray-700 text-[#f26522] hover:underline"
+                                  >
+                                    View Picture {i + 1}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
                             <div className="flex flex-wrap items-end gap-2">
                               <div>
                                 <label className="block text-xs text-gray-500 mb-1">Status</label>
