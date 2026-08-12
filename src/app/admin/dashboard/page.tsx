@@ -99,8 +99,8 @@ interface Stats {
 const PAYMENT_STATUSES = ["PENDING", "COMPLETED", "FAILED", "PENDING_REFUND", "REFUNDED"];
 const SUBSCRIPTION_STATUSES = ["INACTIVE", "ACTIVE", "CANCELLED"];
 
-const SECURITY_DEPOSIT_AMOUNTS: Record<number, number> = { 12: 2999, 24: 3999 };
-const RENTAL_AMOUNTS: Record<number, number> = { 12: 699, 24: 449 };
+const SECURITY_DEPOSIT_AMOUNTS: Record<number, number> = { 12: 3, 24: 4 };
+const RENTAL_AMOUNTS: Record<number, number> = { 12: 2, 24: 1 };
 
 const DOCUMENT_FIELDS: { key: keyof Customer; label: string }[] = [
   { key: "aadharFrontImageUrl", label: "Aadhar (Front)" },

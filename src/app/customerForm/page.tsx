@@ -308,36 +308,36 @@ export default function CustomerFormPage() {
   };
 
   const getPrice = () => {
-    return planDuration === "12" ? "2,999" : "3,999";
+    return planDuration === "12" ? "3" : "4";
   };
 
   const getMonthlyPrice = (duration: string) => {
-    return duration === "12" ? "699" : "449";
+    return duration === "12" ? "2" : "1";
   };
 
   return (
     <div className="min-h-screen bg-[#131724] text-white flex flex-col font-sans">
       {/* Top Header Navigation */}
       <header className="bg-[#1a1f30] flex items-center justify-between px-4 py-3 shadow-md sticky top-0 z-10 border-b border-gray-800">
-        <button type="button" className="p-2 text-gray-400 hover:text-white rounded-md transition-colors">
+        <a href="https://akvinz.com/" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-white rounded-md transition-colors">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
           </svg>
-        </button>
+        </a>
         <div className="flex justify-center items-center">
           <img src="/logo-footer.svg" alt="AKVINZ Logo" className="h-8 object-contain" />
         </div>
         <div className="flex space-x-2">
-          <button type="button" className="p-2 bg-[#f26522]/10 text-[#f26522] rounded-full hover:bg-[#f26522]/20 transition-colors">
+          <a href="tel:+918110016161" className="p-2 bg-[#f26522]/10 text-[#f26522] rounded-full hover:bg-[#f26522]/20 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
             </svg>
-          </button>
-          <button type="button" className="p-2 bg-gray-800 text-gray-400 rounded-full hover:text-white transition-colors">
+          </a>
+          <a href="mailto:Customerconnect@akvinz.com" className="p-2 bg-gray-800 text-gray-400 rounded-full hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
             </svg>
-          </button>
+          </a>
         </div>
       </header>
 
@@ -411,7 +411,7 @@ export default function CustomerFormPage() {
                     <span className="text-xs text-[#f26522] font-semibold mt-0.5">{planDuration === '24' ? 'Smart Saver' : 'Easy Flexi'}</span>
                   </span>
                   <span className="flex flex-col items-end">
-                    <span className="text-sm font-semibold text-white">₹{planDuration === '24' ? '3,999' : '2,999'}</span>
+                    <span className="text-sm font-semibold text-white">₹{planDuration === '24' ? '4' : '3'}</span>
                     <span className="text-xs text-gray-500 mt-0.5">Refundable Security Deposit</span>
                   </span>
                 </div>
