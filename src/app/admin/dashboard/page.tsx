@@ -66,6 +66,16 @@ interface Invoice {
   createdAt: string;
 }
 
+interface PaymentLinkRecord {
+  id: string;
+  amount: number;
+  shortUrl: string;
+  expireBy: string;
+  status: string;
+  paidAt: string | null;
+  createdAt: string;
+}
+
 interface ReturnEvent {
   id: string;
   step: string;
@@ -88,6 +98,9 @@ interface Stats {
 
 const PAYMENT_STATUSES = ["PENDING", "COMPLETED", "FAILED", "PENDING_REFUND", "REFUNDED"];
 const SUBSCRIPTION_STATUSES = ["INACTIVE", "ACTIVE", "CANCELLED"];
+
+const SECURITY_DEPOSIT_AMOUNTS: Record<number, number> = { 12: 2999, 24: 3999 };
+const RENTAL_AMOUNTS: Record<number, number> = { 12: 699, 24: 449 };
 
 const DOCUMENT_FIELDS: { key: keyof Customer; label: string }[] = [
   { key: "aadharFrontImageUrl", label: "Aadhar (Front)" },
@@ -189,14 +202,16 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function ModalSection({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div>
-      <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{title}</h3>
-      {children}
-    </div>
-  );
-}
+const CUSTOMER_MODAL_SECTIONS: { key: string; label: string }[] = [
+  { key: "details", label: "Customer Details" },
+  { key: "quickLinks", label: "Quick Links" },
+  { key: "paymentLink", label: "Payment Link" },
+  { key: "documents", label: "Documents" },
+  { key: "receipts", label: "Receipts" },
+  { key: "product", label: "Company Assets" },
+  { key: "subscription", label: "Payment & Subscription" },
+  { key: "returns", label: "Returns & Refund" },
+];
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
@@ -234,6 +249,21 @@ export default function AdminDashboardPage() {
   const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [copiedLink, setCopiedLink] = useState("");
+  const [paymentLinkAmount, setPaymentLinkAmount] = useState("");
+  const [paymentLinkUrl, setPaymentLinkUrl] = useState("");
+  const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false);
+  const [copiedPaymentLink, setCopiedPaymentLink] = useState(false);
+  const [paymentLinkHistory, setPaymentLinkHistory] = useState<PaymentLinkRecord[]>([]);
+  const [paymentLinkHistoryLoading, setPaymentLinkHistoryLoading] = useState(false);
+  const [copiedPaymentLinkId, setCopiedPaymentLinkId] = useState("");
+  const [markingPaidId, setMarkingPaidId] = useState("");
+  const [newPlanDuration, setNewPlanDuration] = useState("");
+  const [planChangeAmount, setPlanChangeAmount] = useState("");
+  const [planChangeTopUpUrl, setPlanChangeTopUpUrl] = useState("");
+  const [generatingTopUpLink, setGeneratingTopUpLink] = useState(false);
+  const [copiedTopUpLink, setCopiedTopUpLink] = useState(false);
+  const [changingPlan, setChangingPlan] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>("details");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [returnEvents, setReturnEvents] = useState<ReturnEvent[]>([]);
@@ -330,19 +360,41 @@ export default function AdminDashboardPage() {
     setDraftsPage(1);
   }, [draftsSearch]);
 
-  useEffect(() => {
-    if (!selected) {
-      setInvoices([]);
-      return;
-    }
+  const loadInvoices = useCallback((customerId: string) => {
     setInvoicesLoading(true);
-    adminFetch(`/api/admin/customers/${selected.id}/invoices`)
+    adminFetch(`/api/admin/customers/${customerId}/invoices`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success) setInvoices(data.invoices);
       })
       .finally(() => setInvoicesLoading(false));
-  }, [selected]);
+  }, []);
+
+  useEffect(() => {
+    if (!selected) {
+      setInvoices([]);
+      return;
+    }
+    loadInvoices(selected.id);
+  }, [selected, loadInvoices]);
+
+  const loadPaymentLinkHistory = useCallback((customerId: string) => {
+    setPaymentLinkHistoryLoading(true);
+    adminFetch(`/api/admin/customers/${customerId}/payment-links`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setPaymentLinkHistory(data.paymentLinks);
+      })
+      .finally(() => setPaymentLinkHistoryLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!selected) {
+      setPaymentLinkHistory([]);
+      return;
+    }
+    loadPaymentLinkHistory(selected.id);
+  }, [selected, loadPaymentLinkHistory]);
 
   useEffect(() => {
     setShowReturnHistory(false);
@@ -424,6 +476,16 @@ export default function AdminDashboardPage() {
 
   const openEdit = (customer: Customer) => {
     setSelected(customer);
+    setActiveSection("details");
+    setPaymentLinkAmount("");
+    setPaymentLinkUrl("");
+    setCopiedPaymentLink(false);
+    setCopiedPaymentLinkId("");
+    const defaultPlan = customer.planDuration === 12 ? 24 : 12;
+    setNewPlanDuration(String(defaultPlan));
+    setPlanChangeAmount(String(Math.abs(SECURITY_DEPOSIT_AMOUNTS[defaultPlan] - SECURITY_DEPOSIT_AMOUNTS[customer.planDuration])));
+    setPlanChangeTopUpUrl("");
+    setCopiedTopUpLink(false);
     setEditForm({
       paymentStatus: customer.paymentStatus,
       subscriptionStatus: customer.subscriptionStatus,
@@ -473,6 +535,161 @@ export default function AdminDashboardPage() {
       setTimeout(() => setCopiedLink(""), 2000);
     } catch {
       setError("Failed to copy link");
+    }
+  };
+
+  const generatePaymentLink = async () => {
+    if (!selected) return;
+    const amount = Number(paymentLinkAmount);
+    if (!amount || amount <= 0) {
+      setError("Enter a valid amount");
+      return;
+    }
+    setGeneratingPaymentLink(true);
+    setCopiedPaymentLink(false);
+    try {
+      const res = await adminFetch(`/api/admin/customers/${selected.id}/payment-link`, {
+        method: "POST",
+        body: JSON.stringify({ amount }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPaymentLinkUrl(data.shortUrl);
+        setPaymentLinkAmount("");
+        loadPaymentLinkHistory(selected.id);
+      } else {
+        setError(data.message || "Failed to generate payment link");
+      }
+    } catch {
+      setError("Error connecting to server");
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
+
+  const copyPaymentLink = async () => {
+    try {
+      await navigator.clipboard.writeText(paymentLinkUrl);
+      setCopiedPaymentLink(true);
+      setTimeout(() => setCopiedPaymentLink(false), 2000);
+    } catch {
+      setError("Failed to copy link");
+    }
+  };
+
+  const copyHistoryLink = async (record: PaymentLinkRecord) => {
+    try {
+      await navigator.clipboard.writeText(record.shortUrl);
+      setCopiedPaymentLinkId(record.id);
+      setTimeout(() => setCopiedPaymentLinkId(""), 2000);
+    } catch {
+      setError("Failed to copy link");
+    }
+  };
+
+  const markLinkAsPaid = async (record: PaymentLinkRecord) => {
+    if (!selected) return;
+    if (!confirm(`Mark the ₹${record.amount} payment link as paid? Only do this after confirming the payment in the Razorpay dashboard.`)) return;
+    setMarkingPaidId(record.id);
+    try {
+      const res = await adminFetch(`/api/admin/payment-links/${record.id}/mark-paid`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        loadPaymentLinkHistory(selected.id);
+        loadInvoices(selected.id);
+      } else {
+        setError(data.message || "Failed to mark as paid");
+      }
+    } catch {
+      setError("Error connecting to server");
+    } finally {
+      setMarkingPaidId("");
+    }
+  };
+
+  const planChangeDifference = (): number => {
+    if (!selected || !newPlanDuration) return 0;
+    return SECURITY_DEPOSIT_AMOUNTS[Number(newPlanDuration)] - SECURITY_DEPOSIT_AMOUNTS[selected.planDuration];
+  };
+
+  const generateTopUpLink = async () => {
+    if (!selected) return;
+    const amount = planChangeDifference();
+    if (amount <= 0) return;
+    setGeneratingTopUpLink(true);
+    setCopiedTopUpLink(false);
+    try {
+      const res = await adminFetch(`/api/admin/customers/${selected.id}/payment-link`, {
+        method: "POST",
+        body: JSON.stringify({ amount }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPlanChangeTopUpUrl(data.shortUrl);
+        loadPaymentLinkHistory(selected.id);
+      } else {
+        setError(data.message || "Failed to generate top-up link");
+      }
+    } catch {
+      setError("Error connecting to server");
+    } finally {
+      setGeneratingTopUpLink(false);
+    }
+  };
+
+  const copyTopUpLink = async () => {
+    try {
+      await navigator.clipboard.writeText(planChangeTopUpUrl);
+      setCopiedTopUpLink(true);
+      setTimeout(() => setCopiedTopUpLink(false), 2000);
+    } catch {
+      setError("Failed to copy link");
+    }
+  };
+
+  const confirmPlanChange = async () => {
+    if (!selected || !newPlanDuration) return;
+    const target = Number(newPlanDuration);
+    const difference = planChangeDifference();
+    const amountHandled = Number(planChangeAmount);
+    if (isNaN(amountHandled) || amountHandled < 0) {
+      setError("Enter a valid amount paid/refunded");
+      return;
+    }
+    const confirmMsg =
+      difference > 0
+        ? `Apply the ${target}-month plan? This records a ₹${amountHandled} deposit top-up receipt.`
+        : `Apply the ${target}-month plan? This records a ₹${amountHandled} deposit refund — make sure the refund has actually been sent to the customer.`;
+    if (!confirm(confirmMsg)) return;
+
+    setChangingPlan(true);
+    try {
+      const res = await adminFetch(`/api/admin/customers/${selected.id}/change-plan`, {
+        method: "POST",
+        body: JSON.stringify({ newPlanDuration: target, amountHandled }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSelected(data.customer);
+        setEditForm((prev) => ({
+          ...prev,
+          rentalPlanDuration: String(data.customer.rentalPlanDuration),
+          rentalAmount: String(data.customer.rentalAmount),
+        }));
+        setPlanChangeTopUpUrl("");
+        const nextPlan = data.customer.planDuration === 12 ? 24 : 12;
+        setNewPlanDuration(String(nextPlan));
+        setPlanChangeAmount(String(Math.abs(SECURITY_DEPOSIT_AMOUNTS[nextPlan] - SECURITY_DEPOSIT_AMOUNTS[data.customer.planDuration])));
+        loadCustomers();
+        loadStats();
+        loadInvoices(selected.id);
+      } else {
+        setError(data.message || "Failed to change plan");
+      }
+    } catch {
+      setError("Error connecting to server");
+    } finally {
+      setChangingPlan(false);
     }
   };
 
@@ -825,8 +1042,8 @@ export default function AdminDashboardPage() {
 
       {selected && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center px-4 z-50">
-          <div className="bg-[#1a1f30] border border-gray-700/50 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto flex flex-col">
-            <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-800 sticky top-0 bg-[#1a1f30] z-10">
+          <div className="bg-[#1a1f30] border border-gray-700/50 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-800 shrink-0">
               <div>
                 <h2 className="text-lg font-bold">{selected.fullName}</h2>
                 <p className="text-gray-400 text-sm mt-0.5">{selected.email} · {selected.mobileNumber}</p>
@@ -842,18 +1059,35 @@ export default function AdminDashboardPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
-              {/* Column 1: profile */}
-              <div className="space-y-6">
-                <ModalSection title="Customer Details">
-                  <div className="text-sm text-gray-300 space-y-1">
-                    <p>{selected.addressLine1}{selected.addressLine2 ? `, ${selected.addressLine2}` : ""}</p>
-                    <p>{selected.city}, {selected.state} - {selected.pincode}</p>
-                    <p className="text-gray-500">Plan: {selected.planDuration} months · House: {selected.houseType}</p>
-                  </div>
-                </ModalSection>
+            <div className="flex flex-col sm:flex-row flex-1 min-h-0">
+              <div className="flex sm:flex-col shrink-0 w-full sm:w-52 overflow-x-auto sm:overflow-y-auto border-b sm:border-b-0 sm:border-r border-gray-800 py-2">
+                {CUSTOMER_MODAL_SECTIONS.map((s) => (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => setActiveSection(s.key)}
+                    className={`shrink-0 text-left px-4 py-2.5 text-xs font-medium uppercase tracking-wider whitespace-nowrap transition-colors border-b-2 sm:border-b-0 sm:border-l-2 ${
+                      activeSection === s.key
+                        ? "border-[#f26522] text-[#f26522] bg-[#f26522]/10"
+                        : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
 
-                <ModalSection title="Quick Links">
+              <div className="flex-1 overflow-y-auto p-6">
+              {activeSection === "details" && (
+                <div className="text-sm text-gray-300 space-y-1">
+                  <p>{selected.addressLine1}{selected.addressLine2 ? `, ${selected.addressLine2}` : ""}</p>
+                  <p>{selected.city}, {selected.state} - {selected.pincode}</p>
+                  <p className="text-gray-500">Plan: {selected.planDuration} months · House: {selected.houseType}</p>
+                </div>
+              )}
+
+              {activeSection === "quickLinks" && (
+                <>
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -884,84 +1118,171 @@ export default function AdminDashboardPage() {
                       Set a refund amount below before sending the close agreement link.
                     </p>
                   )}
-                </ModalSection>
+                </>
+              )}
 
-                <ModalSection title="Assigned Product">
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Model Name</label>
-                      <input
-                        type="text"
-                        value={editForm.modelName}
-                        onChange={(e) => setEditForm({ ...editForm, modelName: e.target.value })}
-                        placeholder="e.g. AKV-200"
-                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Machine Serial Number</label>
-                      <input
-                        type="text"
-                        value={editForm.machineSerialNumber}
-                        onChange={(e) => setEditForm({ ...editForm, machineSerialNumber: e.target.value })}
-                        placeholder="e.g. SN-000123"
-                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                      />
-                    </div>
+              {activeSection === "paymentLink" && (
+                <>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    value={paymentLinkAmount}
+                    onChange={(e) => setPaymentLinkAmount(e.target.value)}
+                    placeholder="e.g. 499"
+                    className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={generatePaymentLink}
+                    disabled={generatingPaymentLink}
+                    className="px-3 py-2 text-xs whitespace-nowrap bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50"
+                  >
+                    {generatingPaymentLink ? "Generating..." : "Generate Link"}
+                  </button>
+                </div>
+                {paymentLinkUrl && (
+                  <div className="flex items-center justify-between gap-2 mt-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs">
+                    <span className="text-gray-300 truncate">{paymentLinkUrl}</span>
+                    <button
+                      type="button"
+                      onClick={copyPaymentLink}
+                      className="text-[#f26522] hover:underline shrink-0"
+                    >
+                      {copiedPaymentLink ? "Copied!" : "Copy Link"}
+                    </button>
                   </div>
-                </ModalSection>
-              </div>
+                )}
+                <p className="text-xs text-gray-500 mt-2">Link expires 1 hour after generation.</p>
 
-              {/* Column 2: documents + receipts */}
-              <div className="space-y-6">
-                <ModalSection
-                  title={
-                    <>
-                      Documents{" "}
-                      <span className="normal-case text-gray-500">
-                        ({DOCUMENT_FIELDS.filter(({ key }) => Boolean(selected[key])).length}/{DOCUMENT_FIELDS.length} uploaded)
-                      </span>
-                    </>
-                  }
-                >
+                <div className="mt-3">
+                  <p className="text-xs text-gray-500 mb-2">History</p>
+                  {paymentLinkHistoryLoading ? (
+                    <p className="text-xs text-gray-500">Loading...</p>
+                  ) : paymentLinkHistory.length === 0 ? (
+                    <p className="text-xs text-gray-500">No payment links generated yet.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {paymentLinkHistory.map((record) => {
+                        const expired = new Date(record.expireBy) < new Date();
+                        const statusLabel =
+                          record.status === "PAID" ? "Paid" : expired ? "Expired" : "Awaiting Payment";
+                        const statusColor =
+                          record.status === "PAID"
+                            ? "text-green-400"
+                            : expired
+                            ? "text-gray-500"
+                            : "text-yellow-400";
+                        return (
+                          <div
+                            key={record.id}
+                            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs"
+                          >
+                            <div>
+                              <div className="text-gray-200 font-medium">
+                                ₹{record.amount} <span className={statusColor}>· {statusLabel}</span>
+                              </div>
+                              <div className="text-gray-500">
+                                {record.status === "PAID" && record.paidAt
+                                  ? `Paid ${new Date(record.paidAt).toLocaleString()}`
+                                  : `Generated ${new Date(record.createdAt).toLocaleString()}`}
+                              </div>
+                            </div>
+                            {record.status !== "PAID" && (
+                              <div className="flex items-center gap-3 shrink-0">
+                                <button
+                                  onClick={() => copyHistoryLink(record)}
+                                  className="text-[#f26522] hover:underline"
+                                >
+                                  {copiedPaymentLinkId === record.id ? "Copied!" : "Copy"}
+                                </button>
+                                <button
+                                  onClick={() => markLinkAsPaid(record)}
+                                  disabled={markingPaidId === record.id}
+                                  className="text-green-400 hover:underline disabled:opacity-50"
+                                >
+                                  {markingPaidId === record.id ? "Marking..." : "Mark as Paid"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                </>
+              )}
+
+              {activeSection === "documents" && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-3">
+                    {DOCUMENT_FIELDS.filter(({ key }) => Boolean(selected[key])).length}/{DOCUMENT_FIELDS.length} uploaded
+                  </p>
                   <div className="space-y-2">
                     {DOCUMENT_FIELDS.map(({ key, label }) => (
                       <DocumentChip key={key} label={label} url={selected[key] as string | null} />
                     ))}
                   </div>
-                </ModalSection>
+                </div>
+              )}
 
-                <ModalSection title="Receipts">
-                  {invoicesLoading ? (
-                    <p className="text-xs text-gray-500">Loading...</p>
-                  ) : invoices.length === 0 ? (
-                    <p className="text-xs text-gray-500">No receipts yet.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {invoices.map((inv) => (
-                        <div
-                          key={inv.id}
-                          className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs"
-                        >
-                          <div>
-                            <div className="text-gray-200 font-medium">{inv.billNumber}</div>
-                            <div className="text-gray-500">
-                              {inv.productType} · ₹{inv.amount} · {new Date(inv.documentDate).toLocaleDateString()}
-                            </div>
+              {activeSection === "receipts" && (
+                <>
+                {invoicesLoading ? (
+                  <p className="text-xs text-gray-500">Loading...</p>
+                ) : invoices.length === 0 ? (
+                  <p className="text-xs text-gray-500">No receipts yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {invoices.map((inv) => (
+                      <div
+                        key={inv.id}
+                        className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs"
+                      >
+                        <div>
+                          <div className="text-gray-200 font-medium">{inv.billNumber}</div>
+                          <div className="text-gray-500">
+                            {inv.productType} · ₹{inv.amount} · {new Date(inv.documentDate).toLocaleDateString()}
                           </div>
-                          <button onClick={() => downloadInvoicePdf(inv)} className="text-[#f26522] hover:underline shrink-0">
-                            Download PDF
-                          </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </ModalSection>
-              </div>
+                        <button onClick={() => downloadInvoicePdf(inv)} className="text-[#f26522] hover:underline shrink-0">
+                          Download PDF
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                </>
+              )}
 
-              {/* Column 3: editable status & subscription */}
-              <div className="space-y-6">
-                <ModalSection title="Status">
+              {activeSection === "product" && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Model Name</label>
+                    <input
+                      type="text"
+                      value={editForm.modelName}
+                      onChange={(e) => setEditForm({ ...editForm, modelName: e.target.value })}
+                      placeholder="e.g. AKV-200"
+                      className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Machine Serial Number</label>
+                    <input
+                      type="text"
+                      value={editForm.machineSerialNumber}
+                      onChange={(e) => setEditForm({ ...editForm, machineSerialNumber: e.target.value })}
+                      placeholder="e.g. SN-000123"
+                      className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "subscription" && (
+                <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">Payment Status</label>
@@ -983,11 +1304,6 @@ export default function AdminDashboardPage() {
                         {SUBSCRIPTION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
-                  </div>
-                </ModalSection>
-
-                <ModalSection title="Subscription">
-                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">Rental Plan (months)</label>
                       <input
@@ -1025,41 +1341,160 @@ export default function AdminDashboardPage() {
                       />
                     </div>
                   </div>
-                </ModalSection>
 
-                <ModalSection title="Returns & Refund">
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Product Returned</label>
-                      <select
-                        value={editForm.returnRequested}
-                        onChange={(e) => setEditForm({ ...editForm, returnRequested: e.target.value })}
-                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                      >
-                        <option value="false">No</option>
-                        <option value="true">Yes</option>
-                      </select>
+                  <div className="border-t border-gray-800 pt-4">
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Change Plan</h4>
+                    <div className="text-xs text-gray-500 mb-2">
+                      Current: {selected.planDuration} months · ₹{SECURITY_DEPOSIT_AMOUNTS[selected.planDuration]} deposit · ₹{RENTAL_AMOUNTS[selected.planDuration]}/month
                     </div>
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">
-                        Refund Amount (₹) &mdash; set after inspecting the returned product for damage
-                      </label>
-                      <input
-                        type="number"
-                        value={editForm.refundAmount}
-                        onChange={(e) => setEditForm({ ...editForm, refundAmount: e.target.value })}
-                        placeholder="e.g. 2999, or less if damaged"
-                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                      />
+                    <select
+                      value={newPlanDuration}
+                      onChange={(e) => {
+                        const target = Number(e.target.value);
+                        setNewPlanDuration(e.target.value);
+                        setPlanChangeAmount(String(Math.abs(SECURITY_DEPOSIT_AMOUNTS[target] - SECURITY_DEPOSIT_AMOUNTS[selected.planDuration])));
+                        setPlanChangeTopUpUrl("");
+                        setCopiedTopUpLink(false);
+                      }}
+                      className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                    >
+                      {[12, 24].filter((d) => d !== selected.planDuration).map((d) => (
+                        <option key={d} value={d}>
+                          {d} months · ₹{SECURITY_DEPOSIT_AMOUNTS[d]} deposit · ₹{RENTAL_AMOUNTS[d]}/month
+                        </option>
+                      ))}
+                    </select>
+
+                    {newPlanDuration && (
+                      <>
+                        {planChangeDifference() > 0 ? (
+                          <p className="text-xs text-yellow-400 mt-2">
+                            Customer must pay an additional ₹{planChangeDifference()} deposit top-up.
+                          </p>
+                        ) : (
+                          <p className="text-xs text-yellow-400 mt-2">
+                            ₹{Math.abs(planChangeDifference())} deposit refund is due to the customer.
+                          </p>
+                        )}
+
+                        <div className="mt-2">
+                          <label className="block text-xs text-gray-400 mb-1">
+                            Amount {planChangeDifference() > 0 ? "Paid" : "Refunded"} (₹) &mdash; edit if it differs from the amount above
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={planChangeAmount}
+                            onChange={(e) => setPlanChangeAmount(e.target.value)}
+                            placeholder="e.g. 1000"
+                            className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                          />
+                        </div>
+
+                        {planChangeDifference() > 0 && (
+                          <div className="mt-2">
+                            <button
+                              type="button"
+                              onClick={generateTopUpLink}
+                              disabled={generatingTopUpLink}
+                              className="px-3 py-1.5 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50"
+                            >
+                              {generatingTopUpLink ? "Generating..." : `Generate Top-up Link (₹${planChangeDifference()})`}
+                            </button>
+                            {planChangeTopUpUrl && (
+                              <div className="flex items-center justify-between gap-2 mt-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs">
+                                <span className="text-gray-300 truncate">{planChangeTopUpUrl}</span>
+                                <button
+                                  type="button"
+                                  onClick={copyTopUpLink}
+                                  className="text-[#f26522] hover:underline shrink-0"
+                                >
+                                  {copiedTopUpLink ? "Copied!" : "Copy Link"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={confirmPlanChange}
+                          disabled={changingPlan}
+                          className="w-full mt-3 px-3 py-2 text-xs bg-[#f26522]/10 border border-[#f26522]/40 rounded-lg text-[#f26522] hover:bg-[#f26522]/20 transition-colors disabled:opacity-50"
+                        >
+                          {changingPlan ? "Applying..." : "Confirm & Apply Plan Change"}
+                        </button>
+                      </>
+                    )}
+
+                    <div className="mt-4">
+                      <p className="text-xs text-gray-500 mb-2">History</p>
+                      {(() => {
+                        const planChangeInvoices = invoices.filter(
+                          (inv) => inv.productType === "Security Deposit Top-up (Plan Upgrade)" || inv.productType === "Security Deposit Refund (Plan Downgrade)"
+                        );
+                        if (planChangeInvoices.length === 0) {
+                          return <p className="text-xs text-gray-500">No plan changes yet.</p>;
+                        }
+                        return (
+                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                            {planChangeInvoices.map((inv) => (
+                              <div
+                                key={inv.id}
+                                className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs"
+                              >
+                                <div>
+                                  <div className="text-gray-200 font-medium">
+                                    ₹{inv.amount}{" "}
+                                    <span className={inv.type === "REFUND" ? "text-yellow-400" : "text-green-400"}>
+                                      · {inv.type === "REFUND" ? "Refunded" : "Received"}
+                                    </span>
+                                  </div>
+                                  <div className="text-gray-500">{new Date(inv.documentDate).toLocaleString()}</div>
+                                </div>
+                                <button onClick={() => downloadInvoicePdf(inv)} className="text-[#f26522] hover:underline shrink-0">
+                                  Download PDF
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
-                </ModalSection>
-              </div>
-            </div>
+                </div>
+              )}
 
-            {selected.returnRequested && (
-              <div className="px-6 pb-6">
-                <div className="border-t border-gray-800 pt-6">
+              {activeSection === "returns" && (
+                <>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Product Returned</label>
+                    <select
+                      value={editForm.returnRequested}
+                      onChange={(e) => setEditForm({ ...editForm, returnRequested: e.target.value })}
+                      className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                    >
+                      <option value="false">No</option>
+                      <option value="true">Yes</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      Refund Amount (₹) &mdash; set after inspecting the returned product for damage
+                    </label>
+                    <input
+                      type="number"
+                      value={editForm.refundAmount}
+                      onChange={(e) => setEditForm({ ...editForm, refundAmount: e.target.value })}
+                      placeholder="e.g. 2999, or less if damaged"
+                      className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                    />
+                  </div>
+                </div>
+
+                {selected.returnRequested && (
+                <div className="border-t border-gray-800 mt-6 pt-6">
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                       Return Process
@@ -1232,10 +1667,13 @@ export default function AdminDashboardPage() {
                     </div>
                   )}
                 </div>
+                )}
+                </>
+              )}
               </div>
-            )}
+            </div>
 
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-800 sticky bottom-0 bg-[#1a1f30]">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-800 shrink-0">
               <button
                 onClick={() => setSelected(null)}
                 className="px-4 py-2 text-sm text-gray-300 hover:text-white"

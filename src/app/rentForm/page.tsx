@@ -135,7 +135,7 @@ export default function RentalFormPage() {
       }
 
       const options = {
-        key: "rzp_test_Swg0B14PfrFGrX",
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: data.order.amount,
         currency: data.order.currency,
         name: "Akvinz",
