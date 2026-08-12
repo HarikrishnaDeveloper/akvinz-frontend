@@ -159,7 +159,9 @@ export default function RentalFormPage() {
 
             if (verifyData.success) {
               if (verifyData.invoiceId) {
-                downloadFile(`${API_URL}/customer/${customer.id}/invoices/${verifyData.invoiceId}/pdf`);
+                downloadFile(`${API_URL}/customer/${customer.id}/invoices/${verifyData.invoiceId}/pdf`).catch((e) =>
+                  console.error("Receipt download failed:", e)
+                );
               }
               setStep(3);
             } else {

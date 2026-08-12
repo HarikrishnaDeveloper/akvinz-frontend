@@ -176,7 +176,9 @@ export default function CustomerFormPage() {
 
             if (verifyData.success) {
               if (verifyData.invoiceId) {
-                downloadFile(`${API_URL}/customer/${customerId}/invoices/${verifyData.invoiceId}/pdf`);
+                downloadFile(`${API_URL}/customer/${customerId}/invoices/${verifyData.invoiceId}/pdf`).catch((e) =>
+                  console.error("Receipt download failed:", e)
+                );
               }
               setStep(3);
             } else {

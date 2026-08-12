@@ -103,7 +103,9 @@ export default function CloseFormPage() {
       const data = await res.json();
       if (data.success) {
         if (data.invoiceId) {
-          downloadFile(`${API_URL}/customer/${customer.id}/invoices/${data.invoiceId}/pdf`);
+          downloadFile(`${API_URL}/customer/${customer.id}/invoices/${data.invoiceId}/pdf`).catch((e) =>
+            console.error("Receipt download failed:", e)
+          );
         }
         setStep(3);
       } else {
