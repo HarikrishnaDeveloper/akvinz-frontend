@@ -298,6 +298,7 @@ export default function AdminDashboardPage() {
   const [copiedPaymentLink, setCopiedPaymentLink] = useState(false);
   const [paymentLinkHistory, setPaymentLinkHistory] = useState<PaymentLinkRecord[]>([]);
   const [paymentLinkHistoryLoading, setPaymentLinkHistoryLoading] = useState(false);
+  const [paymentLinkHistoryError, setPaymentLinkHistoryError] = useState("");
   const [copiedPaymentLinkId, setCopiedPaymentLinkId] = useState("");
   const [markingPaidId, setMarkingPaidId] = useState("");
   const [newPlanDuration, setNewPlanDuration] = useState("");
@@ -487,10 +488,20 @@ export default function AdminDashboardPage() {
 
   const loadPaymentLinkHistory = useCallback((customerId: string) => {
     setPaymentLinkHistoryLoading(true);
+    setPaymentLinkHistoryError("");
     adminFetch(`/api/admin/customers/${customerId}/payment-links`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.success) setPaymentLinkHistory(data.paymentLinks);
+        if (data.success) {
+          setPaymentLinkHistory(data.paymentLinks);
+        } else {
+          setPaymentLinkHistory([]);
+          setPaymentLinkHistoryError(data.message || "Failed to load payment link history");
+        }
+      })
+      .catch(() => {
+        setPaymentLinkHistory([]);
+        setPaymentLinkHistoryError("Error connecting to server");
       })
       .finally(() => setPaymentLinkHistoryLoading(false));
   }, []);
@@ -498,6 +509,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (!selected) {
       setPaymentLinkHistory([]);
+      setPaymentLinkHistoryError("");
       return;
     }
     loadPaymentLinkHistory(selected.id);
@@ -720,7 +732,7 @@ export default function AdminDashboardPage() {
   };
 
   const generateTopUpLink = async () => {
-    if (!selected) return;
+    if (!selected || !newPlanDuration) return;
     const amount = planChangeDifference();
     if (amount <= 0) return;
     setGeneratingTopUpLink(true);
@@ -728,7 +740,7 @@ export default function AdminDashboardPage() {
     try {
       const res = await adminFetch(`/api/admin/customers/${selected.id}/payment-link`, {
         method: "POST",
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify({ amount, planChangeTargetDuration: Number(newPlanDuration) }),
       });
       const data = await res.json();
       if (data.success) {
@@ -1288,6 +1300,17 @@ export default function AdminDashboardPage() {
                   <p className="text-xs text-gray-500 mb-2">History</p>
                   {paymentLinkHistoryLoading ? (
                     <p className="text-xs text-gray-500">Loading...</p>
+                  ) : paymentLinkHistoryError ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-red-400">{paymentLinkHistoryError}</p>
+                      <button
+                        type="button"
+                        onClick={() => selected && loadPaymentLinkHistory(selected.id)}
+                        className="text-xs text-[#f26522] hover:underline shrink-0"
+                      >
+                        Retry
+                      </button>
+                    </div>
                   ) : paymentLinkHistory.length === 0 ? (
                     <p className="text-xs text-gray-500">No payment links generated yet.</p>
                   ) : (
@@ -1542,6 +1565,9 @@ export default function AdminDashboardPage() {
                                 </button>
                               </div>
                             )}
+                            <p className="text-xs text-gray-500 mt-2">
+                              The plan change applies automatically once this link is paid — no need to also click Confirm below.
+                            </p>
                           </div>
                         )}
 
