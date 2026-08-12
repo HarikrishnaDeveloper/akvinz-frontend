@@ -138,6 +138,40 @@ function formatEventDateTime(iso: string): string {
   });
 }
 
+function toCsvCell(value: string | number | null | undefined): string {
+  const str = value === null || value === undefined ? "" : String(value);
+  if (/[",\n]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function downloadCsv(filename: string, rows: (string | number | null | undefined)[][]): void {
+  const csv = rows.map((row) => row.map(toCsvCell).join(",")).join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function formatDateDMY(date: string | Date): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}/${d.getFullYear()}`;
+}
+
+function formatDateTimeDMY(date: string | Date): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${formatDateDMY(d)}, ${time}`;
+}
+
 function returnEventStatusColor(status: string): string {
   if (status === "COMPLETED" || status === "NO") return "bg-green-500/20 text-green-400";
   if (status === "YES") return "bg-red-500/20 text-red-400";
@@ -162,10 +196,10 @@ function DueDateCell({ customer }: { customer: Customer }) {
   return (
     <div>
       <div className={isOverdue ? "text-red-400 font-medium" : isDueSoon ? "text-yellow-400 font-medium" : "text-gray-300"}>
-        {dueDay.toLocaleDateString()}
+        {formatDateDMY(dueDay)}
       </div>
       {isOverdue && (
-        <div className="text-xs text-red-500">{Math.abs(daysLeft)} day{Math.abs(daysLeft) === 1 ? "" : "s"} overdue</div>
+        <div className="text-xs text-red-500">Day {Math.abs(daysLeft)} overdue</div>
       )}
       {isDueSoon && (
         <div className="text-xs text-yellow-500">{daysLeft === 0 ? "Due today" : `Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}</div>
@@ -245,6 +279,7 @@ export default function AdminDashboardPage() {
   const [returnRequested, setReturnRequested] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isExportingCustomers, setIsExportingCustomers] = useState(false);
   const [selected, setSelected] = useState<Customer | null>(null);
   const [selectedDraft, setSelectedDraft] = useState<Draft | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
@@ -318,6 +353,70 @@ export default function AdminDashboardPage() {
       setIsLoading(false);
     }
   }, [page, search, paymentStatus, subscriptionStatus, returnRequested]);
+
+  const handleExportCustomers = useCallback(async () => {
+    setIsExportingCustomers(true);
+    setError("");
+    try {
+      const all: Customer[] = [];
+      let exportPage = 1;
+      let exportTotalPages = 1;
+
+      do {
+        const params = new URLSearchParams({ page: String(exportPage), limit: "100" });
+        if (search) params.set("search", search);
+        if (paymentStatus) params.set("paymentStatus", paymentStatus);
+        if (subscriptionStatus) params.set("subscriptionStatus", subscriptionStatus);
+        if (returnRequested) params.set("returnRequested", returnRequested);
+
+        const res = await adminFetch(`/api/admin/customers?${params.toString()}`);
+        const data = await res.json();
+        if (!data.success) {
+          setError(data.message || "Failed to export customers");
+          return;
+        }
+        all.push(...data.customers);
+        exportTotalPages = data.pagination.totalPages || 1;
+        exportPage += 1;
+      } while (exportPage <= exportTotalPages);
+
+      const header = [
+        "Name", "Mobile", "Email", "Address Line 1", "Address Line 2", "City", "State", "Pincode",
+        "Plan Duration (months)", "House Type", "Payment Status", "Subscription Status",
+        "Model", "Serial Number", "Rental Amount", "Due Date", "Last Rental Payment",
+        "Joined", "Return Requested", "Return Requested At", "Refund Amount",
+      ];
+      const rows = all.map((c) => [
+        c.fullName,
+        c.mobileNumber,
+        c.email,
+        c.addressLine1,
+        c.addressLine2,
+        c.city,
+        c.state,
+        c.pincode,
+        c.planDuration,
+        c.houseType,
+        c.paymentStatus,
+        c.subscriptionStatus,
+        c.modelName,
+        c.machineSerialNumber,
+        c.rentalAmount,
+        c.subscriptionEnd ? formatDateDMY(c.subscriptionEnd) : "",
+        c.lastPaymentDate ? formatDateDMY(c.lastPaymentDate) : "",
+        formatDateDMY(c.createdAt),
+        c.returnRequested ? "Yes" : "No",
+        c.returnRequestedAt ? formatDateDMY(c.returnRequestedAt) : "",
+        c.refundAmount,
+      ]);
+
+      downloadCsv(`customers-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...rows]);
+    } catch {
+      setError("Error connecting to server");
+    } finally {
+      setIsExportingCustomers(false);
+    }
+  }, [search, paymentStatus, subscriptionStatus, returnRequested]);
 
   const loadDrafts = useCallback(async () => {
     setDraftsLoading(true);
@@ -841,6 +940,17 @@ export default function AdminDashboardPage() {
               <option value="true">Returned</option>
               <option value="false">Not Returned</option>
             </select>
+            <button
+              type="button"
+              onClick={handleExportCustomers}
+              disabled={isExportingCustomers}
+              className="px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl text-white text-sm hover:border-[#f26522] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+              </svg>
+              {isExportingCustomers ? "Exporting..." : "Download"}
+            </button>
           </div>
 
           {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
@@ -891,11 +1001,11 @@ export default function AdminDashboardPage() {
                       </td>
                       <td className="py-3 pr-4 text-gray-300">{c.rentalAmount ? `₹${c.rentalAmount}` : "-"}</td>
                       <td className="py-3 pr-4"><DueDateCell customer={c} /></td>
-                      <td className="py-3 pr-4 text-gray-300">{c.lastPaymentDate ? new Date(c.lastPaymentDate).toLocaleDateString() : "-"}</td>
-                      <td className="py-3 pr-4 text-gray-400">{new Date(c.createdAt).toLocaleDateString()}</td>
+                      <td className="py-3 pr-4 text-gray-300">{c.lastPaymentDate ? formatDateDMY(c.lastPaymentDate) : "-"}</td>
+                      <td className="py-3 pr-4 text-gray-400">{formatDateDMY(c.createdAt)}</td>
                       <td className="py-3 pr-4 text-gray-300">
                         {c.returnRequested && c.returnRequestedAt ? (
-                          new Date(c.returnRequestedAt).toLocaleDateString()
+                          formatDateDMY(c.returnRequestedAt)
                         ) : (
                           <span className="text-gray-500 text-xs">-</span>
                         )}
@@ -1004,7 +1114,7 @@ export default function AdminDashboardPage() {
                           <span className="text-gray-600 text-xs">Not selected</span>
                         )}
                       </td>
-                      <td className="py-3 pr-4 text-gray-400">{new Date(d.updatedAt).toLocaleString()}</td>
+                      <td className="py-3 pr-4 text-gray-400">{formatDateTimeDMY(d.updatedAt)}</td>
                       <td className="py-3 pr-4 text-right space-x-3 whitespace-nowrap">
                         <button
                           onClick={() => setSelectedDraft(d)}
@@ -1196,8 +1306,8 @@ export default function AdminDashboardPage() {
                               </div>
                               <div className="text-gray-500">
                                 {record.status === "PAID" && record.paidAt
-                                  ? `Paid ${new Date(record.paidAt).toLocaleString()}`
-                                  : `Generated ${new Date(record.createdAt).toLocaleString()}`}
+                                  ? `Paid ${formatDateTimeDMY(record.paidAt)}`
+                                  : `Generated ${formatDateTimeDMY(record.createdAt)}`}
                               </div>
                             </div>
                             {record.status !== "PAID" && (
@@ -1255,7 +1365,7 @@ export default function AdminDashboardPage() {
                         <div>
                           <div className="text-gray-200 font-medium">{inv.billNumber}</div>
                           <div className="text-gray-500">
-                            {inv.productType} · ₹{inv.amount} · {new Date(inv.documentDate).toLocaleDateString()}
+                            {inv.productType} · ₹{inv.amount} · {formatDateDMY(inv.documentDate)}
                           </div>
                         </div>
                         <button onClick={() => downloadInvoicePdf(inv)} className="text-[#f26522] hover:underline shrink-0">
@@ -1462,7 +1572,7 @@ export default function AdminDashboardPage() {
                                       · {inv.type === "REFUND" ? "Refunded" : "Received"}
                                     </span>
                                   </div>
-                                  <div className="text-gray-500">{new Date(inv.documentDate).toLocaleString()}</div>
+                                  <div className="text-gray-500">{formatDateTimeDMY(inv.documentDate)}</div>
                                 </div>
                                 <button onClick={() => downloadInvoicePdf(inv)} className="text-[#f26522] hover:underline shrink-0">
                                   Download PDF
@@ -1512,7 +1622,7 @@ export default function AdminDashboardPage() {
                       Return Process
                       {selected.returnRequestedAt && (
                         <span className="normal-case text-gray-500 ml-2 font-normal">
-                          · Return Date: {new Date(selected.returnRequestedAt).toLocaleDateString()}
+                          · Return Date: {formatDateDMY(selected.returnRequestedAt)}
                         </span>
                       )}
                     </h3>
@@ -1670,7 +1780,7 @@ export default function AdminDashboardPage() {
                                 )}
                               </div>
                               <span className="text-gray-600 shrink-0 whitespace-nowrap">
-                                logged {new Date(ev.createdAt).toLocaleString()}
+                                logged {formatDateTimeDMY(ev.createdAt)}
                               </span>
                             </div>
                           );
@@ -1762,11 +1872,11 @@ export default function AdminDashboardPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Started</p>
-                  <p className="text-gray-200">{new Date(selectedDraft.createdAt).toLocaleString()}</p>
+                  <p className="text-gray-200">{formatDateTimeDMY(selectedDraft.createdAt)}</p>
                 </div>
                 <div>
                   <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Last Updated</p>
-                  <p className="text-gray-200">{new Date(selectedDraft.updatedAt).toLocaleString()}</p>
+                  <p className="text-gray-200">{formatDateTimeDMY(selectedDraft.updatedAt)}</p>
                 </div>
               </div>
             </div>
