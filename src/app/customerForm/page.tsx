@@ -329,6 +329,11 @@ export default function CustomerFormPage() {
       return;
     }
 
+    if (!aadharFrontFile || !aadharBackFile || !panFrontFile || !panBackFile || !residenceFile) {
+      alert("Please upload all required documents — Aadhaar (front & back), PAN (front & back), and your residence proof — before continuing.");
+      return;
+    }
+
     try {
       const formData = new FormData();
       formData.append("draftId", draftId);
@@ -393,6 +398,8 @@ export default function CustomerFormPage() {
   const getMonthlyPrice = (duration: string) => {
     return duration === "12" ? "2" : "1";
   };
+
+  const allDocumentsUploaded = !!aadharFrontFile && !!aadharBackFile && !!panFrontFile && !!panBackFile && !!residenceFile;
 
   return (
     <div className="min-h-screen bg-[#131724] text-white flex flex-col font-sans">
@@ -881,14 +888,19 @@ export default function CustomerFormPage() {
             <div className="pt-6">
               <button
                 type="submit"
-                disabled={!otpVerified}
-                className={`w-full font-semibold py-4 px-4 rounded-xl shadow-lg flex justify-center items-center gap-2 transition-all active:scale-[0.98] ${otpVerified ? 'bg-[#f26522] hover:bg-[#e05a1e] text-white shadow-[#f26522]/20' : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'}`}
+                disabled={!otpVerified || !allDocumentsUploaded}
+                className={`w-full font-semibold py-4 px-4 rounded-xl shadow-lg flex justify-center items-center gap-2 transition-all active:scale-[0.98] ${otpVerified && allDocumentsUploaded ? 'bg-[#f26522] hover:bg-[#e05a1e] text-white shadow-[#f26522]/20' : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'}`}
               >
                 <span className="text-lg">Continue to Next Step</span>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
                 </svg>
               </button>
+              {otpVerified && !allDocumentsUploaded && (
+                <p className="text-center text-xs text-red-400 mt-3">
+                  Please upload all 5 required documents to continue.
+                </p>
+              )}
               <div className="mt-5 flex items-center justify-center gap-2 text-gray-500">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>

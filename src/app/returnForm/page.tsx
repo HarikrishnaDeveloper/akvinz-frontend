@@ -17,6 +17,49 @@ export default function ReturnFormPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  const [bankAccountHolderName, setBankAccountHolderName] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [bankIfscCode, setBankIfscCode] = useState("");
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [bankAccountNumberConfirm, setBankAccountNumberConfirm] = useState("");
+  const [ifscStatus, setIfscStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
+  const [ifscBranch, setIfscBranch] = useState("");
+
+  useEffect(() => {
+    const code = bankIfscCode.trim().toUpperCase();
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(code)) {
+      setIfscStatus("idle");
+      setIfscBranch("");
+      return;
+    }
+
+    let cancelled = false;
+    setIfscStatus("checking");
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://ifsc.razorpay.com/${code}`);
+        if (cancelled) return;
+        if (!res.ok) {
+          setIfscStatus("invalid");
+          setIfscBranch("");
+          return;
+        }
+        const data = await res.json();
+        setIfscStatus("valid");
+        setIfscBranch(data.BRANCH || "");
+        setBankName(data.BANK || bankName);
+      } catch {
+        if (!cancelled) setIfscStatus("idle"); // network hiccup, not a verdict on the code — don't block submission
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bankIfscCode]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const mobileParam = params.get("mobile");
@@ -90,15 +133,37 @@ export default function ReturnFormPage() {
     }
   };
 
+  const bankDetailsFilled = !!bankAccountHolderName.trim() && !!bankName.trim() && !!bankIfscCode.trim() && !!bankAccountNumber.trim() && !!bankAccountNumberConfirm.trim();
+  const accountNumbersMatch = bankAccountNumber.trim() === bankAccountNumberConfirm.trim();
+
   const handleSubmit = async () => {
     if (!customer || !agreed) return;
+    if (!bankDetailsFilled) {
+      setSubmitError("Please fill in all bank account details.");
+      return;
+    }
+    if (!accountNumbersMatch) {
+      setSubmitError("Account number and confirmation do not match.");
+      return;
+    }
+    if (ifscStatus === "invalid") {
+      setSubmitError("Please enter a valid IFSC code.");
+      return;
+    }
     setIsSubmitting(true);
     setSubmitError("");
     try {
       const res = await fetch(`${API_URL}/subscription/return`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId: customer.id }),
+        body: JSON.stringify({
+          customerId: customer.id,
+          bankAccountHolderName: bankAccountHolderName.trim(),
+          bankName: bankName.trim(),
+          bankIfscCode: bankIfscCode.trim(),
+          bankAccountNumber: bankAccountNumber.trim(),
+          bankAccountNumberConfirm: bankAccountNumberConfirm.trim(),
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -253,6 +318,89 @@ export default function ReturnFormPage() {
               </div>
             </div>
 
+            <div className="bg-[#131724] p-5 rounded-xl border border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Refund Bank Details</h3>
+              <p className="text-xs text-gray-500 mb-4">
+                Your refundable security deposit will be sent to this account once the returned product is inspected.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">Account Holder Name</label>
+                  <input
+                    type="text"
+                    value={bankAccountHolderName}
+                    onChange={(e) => setBankAccountHolderName(e.target.value)}
+                    className="block w-full px-4 py-3 bg-[#1a1f30] border border-gray-700 rounded-xl focus:ring-1 focus:ring-[#f26522] focus:border-[#f26522] text-white placeholder-gray-600 transition-colors"
+                    placeholder="As per bank records"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">IFSC Code</label>
+                  <input
+                    type="text"
+                    value={bankIfscCode}
+                    onChange={(e) => setBankIfscCode(e.target.value.toUpperCase())}
+                    className={`block w-full px-4 py-3 bg-[#1a1f30] border rounded-xl focus:ring-1 text-white placeholder-gray-600 transition-colors uppercase ${
+                      ifscStatus === "invalid"
+                        ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                        : ifscStatus === "valid"
+                        ? "border-green-600 focus:ring-green-600 focus:border-green-600"
+                        : "border-gray-700 focus:ring-[#f26522] focus:border-[#f26522]"
+                    }`}
+                    placeholder="e.g. SBIN0001234"
+                    maxLength={11}
+                  />
+                  {ifscStatus === "checking" && <p className="mt-2 text-xs text-gray-500">Checking IFSC code...</p>}
+                  {ifscStatus === "valid" && (
+                    <p className="mt-2 text-xs text-green-400 flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                      Verified: {bankName}{ifscBranch ? `, ${ifscBranch} branch` : ""}
+                    </p>
+                  )}
+                  {ifscStatus === "invalid" && (
+                    <p className="mt-2 text-xs text-red-400">This IFSC code doesn&apos;t exist. Please check and re-enter.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">Bank Name</label>
+                  <input
+                    type="text"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    className="block w-full px-4 py-3 bg-[#1a1f30] border border-gray-700 rounded-xl focus:ring-1 focus:ring-[#f26522] focus:border-[#f26522] text-white placeholder-gray-600 transition-colors"
+                    placeholder="e.g. State Bank of India"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">Account Number</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={bankAccountNumber}
+                    onChange={(e) => setBankAccountNumber(e.target.value.replace(/\D/g, ""))}
+                    className="block w-full px-4 py-3 bg-[#1a1f30] border border-gray-700 rounded-xl focus:ring-1 focus:ring-[#f26522] focus:border-[#f26522] text-white placeholder-gray-600 transition-colors"
+                    placeholder="Enter account number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">Re-enter Account Number</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={bankAccountNumberConfirm}
+                    onChange={(e) => setBankAccountNumberConfirm(e.target.value.replace(/\D/g, ""))}
+                    className="block w-full px-4 py-3 bg-[#1a1f30] border border-gray-700 rounded-xl focus:ring-1 focus:ring-[#f26522] focus:border-[#f26522] text-white placeholder-gray-600 transition-colors"
+                    placeholder="Re-enter to confirm"
+                  />
+                  {bankAccountNumber && bankAccountNumberConfirm && !accountNumbersMatch && (
+                    <p className="mt-2 text-sm text-red-400">Account numbers do not match.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-5">
               <h3 className="text-base font-semibold text-white mb-2">Before you continue</h3>
               <p className="text-sm text-gray-400 leading-relaxed mb-4">
@@ -279,7 +427,7 @@ export default function ReturnFormPage() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={!agreed || isSubmitting}
+                disabled={!agreed || isSubmitting || !bankDetailsFilled || !accountNumbersMatch || ifscStatus === "invalid"}
                 className="w-full bg-[#f26522] hover:bg-[#e05a1e] text-white font-semibold py-4 px-4 rounded-xl shadow-lg shadow-[#f26522]/20 flex justify-center items-center gap-2 transition-all disabled:opacity-50"
               >
                 {isSubmitting ? "Submitting..." : "Confirm & Discontinue Subscription"}

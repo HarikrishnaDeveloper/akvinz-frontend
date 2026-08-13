@@ -968,11 +968,12 @@ export default function AdminDashboardPage() {
   };
 
   const handleDelete = async (customer: Customer) => {
-    if (!confirm(`Delete customer "${customer.fullName}"? This cannot be undone.`)) return;
+    if (!confirm(`Delete customer "${customer.fullName}"? This also permanently deletes their invoices, payment links, payouts, and return history. This cannot be undone.`)) return;
     try {
       const res = await adminFetch(`/api/admin/customers/${customer.id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
+        setSelected(null);
         loadCustomers();
         loadStats();
       } else {
@@ -1196,7 +1197,6 @@ export default function AdminDashboardPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                           </button>
-                          <button onClick={() => handleDelete(c)} className="text-red-400 hover:underline">Delete</button>
                         </td>
                       </tr>
                     ))
@@ -1344,15 +1344,23 @@ export default function AdminDashboardPage() {
                 <h2 className="text-lg font-bold">{selected.fullName}</h2>
                 <p className="text-gray-400 text-sm mt-0.5">{selected.email} · {selected.mobileNumber}</p>
               </div>
-              <button
-                onClick={() => setSelected(null)}
-                aria-label="Close"
-                className="text-gray-400 hover:text-white shrink-0"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-4 shrink-0">
+                <button
+                  onClick={() => handleDelete(selected)}
+                  className="text-sm text-red-400 hover:underline"
+                >
+                  Delete Customer
+                </button>
+                <button
+                  onClick={() => setSelected(null)}
+                  aria-label="Close"
+                  className="text-gray-400 hover:text-white"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-col sm:flex-row flex-1 min-h-0">
