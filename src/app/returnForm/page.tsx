@@ -115,6 +115,9 @@ export default function ReturnFormPage() {
 
   return (
     <div className="min-h-screen bg-[#131724] text-white flex flex-col font-sans">
+      <div className="bg-[#f26522] text-white text-center text-xs sm:text-sm font-semibold py-1.5 px-4">
+        RENT O MATE is a registered service of AKVINZ.
+      </div>
       <header className="bg-[#1a1f30] flex items-center justify-between px-4 py-3 shadow-md sticky top-0 z-10 border-b border-gray-800">
         <div className="w-8"></div>
         <div className="flex justify-center items-center">
@@ -315,10 +318,6 @@ export default function ReturnFormPage() {
           </div>
         )}
       </main>
-
-      <footer className="text-center text-xs text-gray-500 py-4 px-4">
-        RENT O MATE is a registered service of AKVINZ.
-      </footer>
     </div>
   );
 }

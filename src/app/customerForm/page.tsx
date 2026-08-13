@@ -396,6 +396,9 @@ export default function CustomerFormPage() {
 
   return (
     <div className="min-h-screen bg-[#131724] text-white flex flex-col font-sans">
+      <div className="bg-[#f26522] text-white text-center text-xs sm:text-sm font-semibold py-1.5 px-4">
+        RENT O MATE is a registered service of AKVINZ.
+      </div>
       {/* Top Header Navigation */}
       <header className="bg-[#1a1f30] flex items-center justify-between px-4 py-3 shadow-md sticky top-0 z-10 border-b border-gray-800">
         <a href="https://akvinz.com/" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-white rounded-md transition-colors">
@@ -1006,10 +1009,6 @@ export default function CustomerFormPage() {
           </div>
         )}
       </main>
-
-      <footer className="text-center text-xs text-gray-500 py-4 px-4">
-        RENT O MATE is a registered service of AKVINZ.
-      </footer>
     </div>
   );
 }

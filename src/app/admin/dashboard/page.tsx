@@ -254,9 +254,8 @@ function DueDateCell({ customer }: { customer: Customer }) {
 function DocumentChip({ label, url }: { label: string; url: string | null }) {
   return (
     <div
-      className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-xs ${
-        url ? "border-gray-700 bg-[#131724]" : "border-gray-800 bg-[#131724]/40"
-      }`}
+      className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-xs ${url ? "border-gray-700 bg-[#131724]" : "border-gray-800 bg-[#131724]/40"
+        }`}
     >
       <span className={url ? "text-gray-300" : "text-gray-600"}>{label}</span>
       {url ? (
@@ -1077,263 +1076,263 @@ export default function AdminDashboardPage() {
         </div>
 
         {activeTab === "customers" && (
-        <div className="bg-[#1a1f30] border border-gray-700/50 rounded-2xl p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row gap-3 mb-4">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, email, or mobile..."
-              className="flex-grow px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl focus:ring-1 focus:ring-[#f26522] focus:border-[#f26522] text-white text-sm transition-colors"
-            />
-            <select
-              value={paymentStatus}
-              onChange={(e) => setPaymentStatus(e.target.value)}
-              className="px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl text-white text-sm"
-            >
-              <option value="">All Security Deposit Status</option>
-              {SECURITY_DEPOSIT_STATUSES.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
-            <select
-              value={subscriptionStatus}
-              onChange={(e) => setSubscriptionStatus(e.target.value)}
-              className="px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl text-white text-sm"
-            >
-              <option value="">All Subscription Status</option>
-              {SUBSCRIPTION_STATUS_FILTERS.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
-            <select
-              value={assetStatus}
-              onChange={(e) => setAssetStatus(e.target.value)}
-              className="px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl text-white text-sm"
-            >
-              <option value="">All Asset Status</option>
-              <option value="RECEIVED">Asset Received</option>
-              <option value="NOT_RECEIVED">Asset Not Received</option>
-            </select>
-            <button
-              type="button"
-              onClick={handleExportCustomers}
-              disabled={isExportingCustomers}
-              className="px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl text-white text-sm hover:border-[#f26522] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-              </svg>
-              {isExportingCustomers ? "Exporting..." : "Download"}
-            </button>
-          </div>
-
-          {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-400 border-b border-gray-700/50">
-                  <th className="py-2 pr-4 font-medium">Name</th>
-                  <th className="py-2 pr-4 font-medium">Contact</th>
-                  <th className="py-2 pr-4 font-medium">Subscription</th>
-                  <th className="py-2 pr-4 font-medium">Product</th>
-                  <th className="py-2 pr-4 font-medium">Rental</th>
-                  <th className="py-2 pr-4 font-medium">Due Date</th>
-                  <th className="py-2 pr-4 font-medium">Last Rental Payment</th>
-                  <th className="py-2 pr-4 font-medium">Joined</th>
-                  <th className="py-2 pr-4 font-medium">Returned</th>
-                  <th className="py-2 pr-4 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={10} className="py-8 text-center text-gray-400">Loading...</td>
-                  </tr>
-                ) : customers.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="py-8 text-center text-gray-400">No customers found</td>
-                  </tr>
-                ) : (
-                  customers.map((c) => (
-                    <tr key={c.id} className="border-b border-gray-800 hover:bg-white/5">
-                      <td className="py-3 pr-4">{c.fullName}</td>
-                      <td className="py-3 pr-4 text-gray-300">
-                        <div>{c.mobileNumber}</div>
-                        <div className="text-xs text-gray-500">{c.email}</div>
-                      </td>
-                      <td className="py-3 pr-4"><StatusBadge status={c.subscriptionStatus} /></td>
-                      <td className="py-3 pr-4 text-gray-300">
-                        {c.modelName || c.machineSerialNumber ? (
-                          <>
-                            <div>{c.modelName || "-"}</div>
-                            <div className="text-xs text-gray-500">{c.machineSerialNumber || "-"}</div>
-                          </>
-                        ) : (
-                          <span className="text-gray-500 text-xs">-</span>
-                        )}
-                      </td>
-                      <td className="py-3 pr-4 text-gray-300">{c.rentalAmount ? `₹${c.rentalAmount}` : "-"}</td>
-                      <td className="py-3 pr-4"><DueDateCell customer={c} /></td>
-                      <td className="py-3 pr-4 text-gray-300">{c.lastPaymentDate ? formatDateDMY(c.lastPaymentDate) : "-"}</td>
-                      <td className="py-3 pr-4 text-gray-400">{formatDateDMY(c.createdAt)}</td>
-                      <td className="py-3 pr-4 text-gray-300">
-                        {c.returnRequested && c.returnRequestedAt ? (
-                          formatDateDMY(c.returnRequestedAt)
-                        ) : (
-                          <span className="text-gray-500 text-xs">-</span>
-                        )}
-                      </td>
-                      <td className="py-3 pr-4 text-right space-x-3 whitespace-nowrap">
-                        <button
-                          onClick={() => openEdit(c)}
-                          title="View full details"
-                          aria-label="View full details"
-                          className="inline-flex align-middle text-gray-400 hover:text-white transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                        </button>
-                        <button onClick={() => handleDelete(c)} className="text-red-400 hover:underline">Delete</button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
-            <span>Page {page} of {totalPages}</span>
-            <div className="space-x-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="px-3 py-1.5 border border-gray-700 rounded-lg disabled:opacity-40"
+          <div className="bg-[#1a1f30] border border-gray-700/50 rounded-2xl p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, email, or mobile..."
+                className="flex-grow px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl focus:ring-1 focus:ring-[#f26522] focus:border-[#f26522] text-white text-sm transition-colors"
+              />
+              <select
+                value={paymentStatus}
+                onChange={(e) => setPaymentStatus(e.target.value)}
+                className="px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl text-white text-sm"
               >
-                Previous
-              </button>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="px-3 py-1.5 border border-gray-700 rounded-lg disabled:opacity-40"
+                <option value="">Security Deposit Status</option>
+                {SECURITY_DEPOSIT_STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+              <select
+                value={subscriptionStatus}
+                onChange={(e) => setSubscriptionStatus(e.target.value)}
+                className="px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl text-white text-sm"
               >
-                Next
+                <option value="">Subscription Status</option>
+                {SUBSCRIPTION_STATUS_FILTERS.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+              <select
+                value={assetStatus}
+                onChange={(e) => setAssetStatus(e.target.value)}
+                className="px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl text-white text-sm"
+              >
+                <option value="">All Asset Status</option>
+                <option value="RECEIVED">Asset Received</option>
+                <option value="NOT_RECEIVED">Asset Not Received</option>
+              </select>
+              <button
+                type="button"
+                onClick={handleExportCustomers}
+                disabled={isExportingCustomers}
+                className="px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl text-white text-sm hover:border-[#f26522] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                </svg>
+                {isExportingCustomers ? "Exporting..." : "Download"}
               </button>
             </div>
+
+            {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-400 border-b border-gray-700/50">
+                    <th className="py-2 pr-4 font-medium">Name</th>
+                    <th className="py-2 pr-4 font-medium">Contact</th>
+                    <th className="py-2 pr-4 font-medium">Subscription</th>
+                    <th className="py-2 pr-4 font-medium">Product</th>
+                    <th className="py-2 pr-4 font-medium">Rental</th>
+                    <th className="py-2 pr-4 font-medium">Due Date</th>
+                    <th className="py-2 pr-4 font-medium">Last Rental Payment</th>
+                    <th className="py-2 pr-4 font-medium">Joined</th>
+                    <th className="py-2 pr-4 font-medium">Returned</th>
+                    <th className="py-2 pr-4 font-medium text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={10} className="py-8 text-center text-gray-400">Loading...</td>
+                    </tr>
+                  ) : customers.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="py-8 text-center text-gray-400">No customers found</td>
+                    </tr>
+                  ) : (
+                    customers.map((c) => (
+                      <tr key={c.id} className="border-b border-gray-800 hover:bg-white/5">
+                        <td className="py-3 pr-4">{c.fullName}</td>
+                        <td className="py-3 pr-4 text-gray-300">
+                          <div>{c.mobileNumber}</div>
+                          <div className="text-xs text-gray-500">{c.email}</div>
+                        </td>
+                        <td className="py-3 pr-4"><StatusBadge status={c.subscriptionStatus} /></td>
+                        <td className="py-3 pr-4 text-gray-300">
+                          {c.modelName || c.machineSerialNumber ? (
+                            <>
+                              <div>{c.modelName || "-"}</div>
+                              <div className="text-xs text-gray-500">{c.machineSerialNumber || "-"}</div>
+                            </>
+                          ) : (
+                            <span className="text-gray-500 text-xs">-</span>
+                          )}
+                        </td>
+                        <td className="py-3 pr-4 text-gray-300">{c.rentalAmount ? `₹${c.rentalAmount}` : "-"}</td>
+                        <td className="py-3 pr-4"><DueDateCell customer={c} /></td>
+                        <td className="py-3 pr-4 text-gray-300">{c.lastPaymentDate ? formatDateDMY(c.lastPaymentDate) : "-"}</td>
+                        <td className="py-3 pr-4 text-gray-400">{formatDateDMY(c.createdAt)}</td>
+                        <td className="py-3 pr-4 text-gray-300">
+                          {c.returnRequested && c.returnRequestedAt ? (
+                            formatDateDMY(c.returnRequestedAt)
+                          ) : (
+                            <span className="text-gray-500 text-xs">-</span>
+                          )}
+                        </td>
+                        <td className="py-3 pr-4 text-right space-x-3 whitespace-nowrap">
+                          <button
+                            onClick={() => openEdit(c)}
+                            title="View full details"
+                            aria-label="View full details"
+                            className="inline-flex align-middle text-gray-400 hover:text-white transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </button>
+                          <button onClick={() => handleDelete(c)} className="text-red-400 hover:underline">Delete</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
+              <span>Page {page} of {totalPages}</span>
+              <div className="space-x-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="px-3 py-1.5 border border-gray-700 rounded-lg disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="px-3 py-1.5 border border-gray-700 rounded-lg disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
         )}
 
         {activeTab === "drafts" && (
-        <div className="bg-[#1a1f30] border border-gray-700/50 rounded-2xl p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row gap-3 mb-4">
-            <input
-              type="text"
-              value={draftsSearch}
-              onChange={(e) => setDraftsSearch(e.target.value)}
-              placeholder="Search by name, email, or mobile..."
-              className="flex-grow px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl focus:ring-1 focus:ring-[#f26522] focus:border-[#f26522] text-white text-sm transition-colors"
-            />
-          </div>
+          <div className="bg-[#1a1f30] border border-gray-700/50 rounded-2xl p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <input
+                type="text"
+                value={draftsSearch}
+                onChange={(e) => setDraftsSearch(e.target.value)}
+                placeholder="Search by name, email, or mobile..."
+                className="flex-grow px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl focus:ring-1 focus:ring-[#f26522] focus:border-[#f26522] text-white text-sm transition-colors"
+              />
+            </div>
 
-          <p className="text-xs text-gray-500 mb-4">
-            Registrations customers started but haven&apos;t completed and submitted yet. These are not counted as customers.
-          </p>
+            <p className="text-xs text-gray-500 mb-4">
+              Registrations customers started but haven&apos;t completed and submitted yet. These are not counted as customers.
+            </p>
 
-          {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
+            {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-400 border-b border-gray-700/50">
-                  <th className="py-2 pr-4 font-medium">Name</th>
-                  <th className="py-2 pr-4 font-medium">Contact</th>
-                  <th className="py-2 pr-4 font-medium">City</th>
-                  <th className="py-2 pr-4 font-medium">Plan</th>
-                  <th className="py-2 pr-4 font-medium">House Type</th>
-                  <th className="py-2 pr-4 font-medium">Documents</th>
-                  <th className="py-2 pr-4 font-medium">Last Updated</th>
-                  <th className="py-2 pr-4 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {draftsLoading ? (
-                  <tr>
-                    <td colSpan={8} className="py-8 text-center text-gray-400">Loading...</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-400 border-b border-gray-700/50">
+                    <th className="py-2 pr-4 font-medium">Name</th>
+                    <th className="py-2 pr-4 font-medium">Contact</th>
+                    <th className="py-2 pr-4 font-medium">City</th>
+                    <th className="py-2 pr-4 font-medium">Plan</th>
+                    <th className="py-2 pr-4 font-medium">House Type</th>
+                    <th className="py-2 pr-4 font-medium">Documents</th>
+                    <th className="py-2 pr-4 font-medium">Last Updated</th>
+                    <th className="py-2 pr-4 font-medium text-right">Actions</th>
                   </tr>
-                ) : drafts.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-8 text-center text-gray-400">No drafts found</td>
-                  </tr>
-                ) : (
-                  drafts.map((d) => (
-                    <tr key={d.id} className="border-b border-gray-800 hover:bg-white/5">
-                      <td className="py-3 pr-4">{d.fullName || <span className="text-gray-500">-</span>}</td>
-                      <td className="py-3 pr-4 text-gray-300">
-                        <div>{d.mobileNumber || "-"}</div>
-                        <div className="text-xs text-gray-500">{d.email || "-"}</div>
-                      </td>
-                      <td className="py-3 pr-4 text-gray-300">{d.city || "-"}</td>
-                      <td className="py-3 pr-4 text-gray-300">{d.planDuration ? `${d.planDuration} months` : "-"}</td>
-                      <td className="py-3 pr-4 text-gray-300">{d.houseType || "-"}</td>
-                      <td className="py-3 pr-4">
-                        {d.residenceDocType ? (
-                          <span className="px-2 py-1 rounded-lg text-xs font-medium bg-blue-500/20 text-blue-400">
-                            {d.residenceDocType}
-                          </span>
-                        ) : (
-                          <span className="text-gray-600 text-xs">Not selected</span>
-                        )}
-                      </td>
-                      <td className="py-3 pr-4 text-gray-400">{formatDateTimeDMY(d.updatedAt)}</td>
-                      <td className="py-3 pr-4 text-right space-x-3 whitespace-nowrap">
-                        <button
-                          onClick={() => setSelectedDraft(d)}
-                          title="View draft details"
-                          aria-label="View draft details"
-                          className="inline-flex align-middle text-gray-400 hover:text-white transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                        </button>
-                        <button onClick={() => copyDraftLink(d)} className="text-[#f26522] hover:underline">
-                          {copiedDraftId === d.id ? "Copied!" : "Copy Continue Link"}
-                        </button>
-                        <button onClick={() => handleDeleteDraft(d)} className="text-red-400 hover:underline">Delete</button>
-                      </td>
+                </thead>
+                <tbody>
+                  {draftsLoading ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-gray-400">Loading...</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : drafts.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-gray-400">No drafts found</td>
+                    </tr>
+                  ) : (
+                    drafts.map((d) => (
+                      <tr key={d.id} className="border-b border-gray-800 hover:bg-white/5">
+                        <td className="py-3 pr-4">{d.fullName || <span className="text-gray-500">-</span>}</td>
+                        <td className="py-3 pr-4 text-gray-300">
+                          <div>{d.mobileNumber || "-"}</div>
+                          <div className="text-xs text-gray-500">{d.email || "-"}</div>
+                        </td>
+                        <td className="py-3 pr-4 text-gray-300">{d.city || "-"}</td>
+                        <td className="py-3 pr-4 text-gray-300">{d.planDuration ? `${d.planDuration} months` : "-"}</td>
+                        <td className="py-3 pr-4 text-gray-300">{d.houseType || "-"}</td>
+                        <td className="py-3 pr-4">
+                          {d.residenceDocType ? (
+                            <span className="px-2 py-1 rounded-lg text-xs font-medium bg-blue-500/20 text-blue-400">
+                              {d.residenceDocType}
+                            </span>
+                          ) : (
+                            <span className="text-gray-600 text-xs">Not selected</span>
+                          )}
+                        </td>
+                        <td className="py-3 pr-4 text-gray-400">{formatDateTimeDMY(d.updatedAt)}</td>
+                        <td className="py-3 pr-4 text-right space-x-3 whitespace-nowrap">
+                          <button
+                            onClick={() => setSelectedDraft(d)}
+                            title="View draft details"
+                            aria-label="View draft details"
+                            className="inline-flex align-middle text-gray-400 hover:text-white transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </button>
+                          <button onClick={() => copyDraftLink(d)} className="text-[#f26522] hover:underline">
+                            {copiedDraftId === d.id ? "Copied!" : "Copy Continue Link"}
+                          </button>
+                          <button onClick={() => handleDeleteDraft(d)} className="text-red-400 hover:underline">Delete</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-          <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
-            <span>Page {draftsPage} of {draftsTotalPages}</span>
-            <div className="space-x-2">
-              <button
-                onClick={() => setDraftsPage((p) => Math.max(1, p - 1))}
-                disabled={draftsPage <= 1}
-                className="px-3 py-1.5 border border-gray-700 rounded-lg disabled:opacity-40"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setDraftsPage((p) => Math.min(draftsTotalPages, p + 1))}
-                disabled={draftsPage >= draftsTotalPages}
-                className="px-3 py-1.5 border border-gray-700 rounded-lg disabled:opacity-40"
-              >
-                Next
-              </button>
+            <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
+              <span>Page {draftsPage} of {draftsTotalPages}</span>
+              <div className="space-x-2">
+                <button
+                  onClick={() => setDraftsPage((p) => Math.max(1, p - 1))}
+                  disabled={draftsPage <= 1}
+                  className="px-3 py-1.5 border border-gray-700 rounded-lg disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setDraftsPage((p) => Math.min(draftsTotalPages, p + 1))}
+                  disabled={draftsPage >= draftsTotalPages}
+                  className="px-3 py-1.5 border border-gray-700 rounded-lg disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </div>
-        </div>
         )}
       </main>
 
@@ -1363,11 +1362,10 @@ export default function AdminDashboardPage() {
                     key={s.key}
                     type="button"
                     onClick={() => setActiveSection(s.key)}
-                    className={`shrink-0 text-left px-4 py-2.5 text-xs font-medium uppercase tracking-wider whitespace-nowrap transition-colors border-b-2 sm:border-b-0 sm:border-l-2 ${
-                      activeSection === s.key
+                    className={`shrink-0 text-left px-4 py-2.5 text-xs font-medium uppercase tracking-wider whitespace-nowrap transition-colors border-b-2 sm:border-b-0 sm:border-l-2 ${activeSection === s.key
                         ? "border-[#f26522] text-[#f26522] bg-[#f26522]/10"
                         : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
-                    }`}
+                      }`}
                   >
                     {s.label}
                   </button>
@@ -1375,707 +1373,705 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6">
-              {activeSection === "details" && (
-                <div className="text-sm text-gray-300 space-y-1">
-                  <p>{selected.addressLine1}{selected.addressLine2 ? `, ${selected.addressLine2}` : ""}</p>
-                  <p>{selected.city}, {selected.state} - {selected.pincode}</p>
-                  <p className="text-gray-500">Plan: {selected.planDuration} months · House: {selected.houseType}</p>
-                </div>
-              )}
+                {activeSection === "details" && (
+                  <div className="text-sm text-gray-300 space-y-1">
+                    <p>{selected.addressLine1}{selected.addressLine2 ? `, ${selected.addressLine2}` : ""}</p>
+                    <p>{selected.city}, {selected.state} - {selected.pincode}</p>
+                    <p className="text-gray-500">Plan: {selected.planDuration} months · House: {selected.houseType}</p>
+                  </div>
+                )}
 
-              {activeSection === "quickLinks" && (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => copyLink("/rentForm", selected.mobileNumber, "rent")}
-                      className="px-3 py-1.5 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
-                    >
-                      {copiedLink === "rent" ? "Copied!" : "Copy Rent Link"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => copyLink("/returnForm", selected.mobileNumber, "return")}
-                      className="px-3 py-1.5 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
-                    >
-                      {copiedLink === "return" ? "Copied!" : "Copy Return Link"}
-                    </button>
-                    {selected.paymentStatus === "PENDING_REFUND" && (
+                {activeSection === "quickLinks" && (
+                  <>
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => copyLink("/closeForm", selected.mobileNumber, "close")}
+                        onClick={() => copyLink("/rentForm", selected.mobileNumber, "rent")}
                         className="px-3 py-1.5 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
                       >
-                        {copiedLink === "close" ? "Copied!" : "Copy Close Agreement Link"}
+                        {copiedLink === "rent" ? "Copied!" : "Copy Rent Link"}
                       </button>
-                    )}
-                  </div>
-                  {selected.paymentStatus === "PENDING_REFUND" && selected.refundAmount === null && (
-                    <p className="text-xs text-yellow-400 mt-2">
-                      Set a refund amount below before sending the close agreement link.
-                    </p>
-                  )}
-                </>
-              )}
-
-              {activeSection === "transactions" && (
-                <>
-                <div className="flex gap-2 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => setTransactionMode("pay")}
-                    className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
-                      transactionMode === "pay"
-                        ? "bg-[#f26522]/10 border-[#f26522]/40 text-[#f26522]"
-                        : "bg-[#131724] border-gray-700 text-gray-300 hover:text-white hover:border-gray-500"
-                    }`}
-                  >
-                    Pay Customer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTransactionMode("collect")}
-                    className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
-                      transactionMode === "collect"
-                        ? "bg-[#f26522]/10 border-[#f26522]/40 text-[#f26522]"
-                        : "bg-[#131724] border-gray-700 text-gray-300 hover:text-white hover:border-gray-500"
-                    }`}
-                  >
-                    Collect From Customer
-                  </button>
-                </div>
-
-                {transactionMode === "pay" ? (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Amount</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={payoutAmount}
-                        onChange={(e) => setPayoutAmount(e.target.value)}
-                        placeholder="e.g. 100"
-                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Reason</label>
-                      <input
-                        type="text"
-                        value={payoutReason}
-                        onChange={(e) => setPayoutReason(e.target.value)}
-                        placeholder="e.g. Deposit refund"
-                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={recordPayout}
-                      disabled={recordingPayout}
-                      className="w-full px-3 py-2 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50"
-                    >
-                      {recordingPayout ? "Recording..." : "Record Payment"}
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        min="1"
-                        value={paymentLinkAmount}
-                        onChange={(e) => setPaymentLinkAmount(e.target.value)}
-                        placeholder="e.g. 499"
-                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                      />
                       <button
                         type="button"
-                        onClick={generatePaymentLink}
-                        disabled={generatingPaymentLink}
-                        className="px-3 py-2 text-xs whitespace-nowrap bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50"
+                        onClick={() => copyLink("/returnForm", selected.mobileNumber, "return")}
+                        className="px-3 py-1.5 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
                       >
-                        {generatingPaymentLink ? "Generating..." : "Generate Payment Link"}
+                        {copiedLink === "return" ? "Copied!" : "Copy Return Link"}
                       </button>
-                    </div>
-                    {paymentLinkUrl && (
-                      <div className="flex items-center justify-between gap-2 mt-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs">
-                        <span className="text-gray-300 truncate">{paymentLinkUrl}</span>
+                      {selected.paymentStatus === "PENDING_REFUND" && (
                         <button
                           type="button"
-                          onClick={copyPaymentLink}
-                          className="text-[#f26522] hover:underline shrink-0"
+                          onClick={() => copyLink("/closeForm", selected.mobileNumber, "close")}
+                          className="px-3 py-1.5 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
                         >
-                          {copiedPaymentLink ? "Copied!" : "Copy Link"}
+                          {copiedLink === "close" ? "Copied!" : "Copy Close Agreement Link"}
                         </button>
-                      </div>
+                      )}
+                    </div>
+                    {selected.paymentStatus === "PENDING_REFUND" && selected.refundAmount === null && (
+                      <p className="text-xs text-yellow-400 mt-2">
+                        Set a refund amount below before sending the close agreement link.
+                      </p>
                     )}
-                    <p className="text-xs text-gray-500 mt-2">Link expires 1 hour after generation.</p>
                   </>
                 )}
 
-                <div className="mt-4">
-                  <p className="text-xs text-gray-500 mb-2">Transaction History</p>
-                  {payoutHistoryLoading || paymentLinkHistoryLoading ? (
-                    <p className="text-xs text-gray-500">Loading...</p>
-                  ) : payoutHistoryError || paymentLinkHistoryError ? (
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs text-red-400">{payoutHistoryError || paymentLinkHistoryError}</p>
+                {activeSection === "transactions" && (
+                  <>
+                    <div className="flex gap-2 mb-4">
                       <button
                         type="button"
-                        onClick={() => {
-                          if (!selected) return;
-                          loadPayoutHistory(selected.id);
-                          loadPaymentLinkHistory(selected.id);
-                        }}
-                        className="text-xs text-[#f26522] hover:underline shrink-0"
+                        onClick={() => setTransactionMode("pay")}
+                        className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${transactionMode === "pay"
+                            ? "bg-[#f26522]/10 border-[#f26522]/40 text-[#f26522]"
+                            : "bg-[#131724] border-gray-700 text-gray-300 hover:text-white hover:border-gray-500"
+                          }`}
                       >
-                        Retry
+                        Pay Customer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTransactionMode("collect")}
+                        className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${transactionMode === "collect"
+                            ? "bg-[#f26522]/10 border-[#f26522]/40 text-[#f26522]"
+                            : "bg-[#131724] border-gray-700 text-gray-300 hover:text-white hover:border-gray-500"
+                          }`}
+                      >
+                        Collect From Customer
                       </button>
                     </div>
-                  ) : payoutHistory.length === 0 && paymentLinkHistory.length === 0 ? (
-                    <p className="text-xs text-gray-500">No transactions yet.</p>
-                  ) : (
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {[
-                        ...payoutHistory.map((p) => ({
-                          key: `payout-${p.id}`,
-                          direction: "Admin → Customer",
-                          amount: p.amount,
-                          detail: p.reason,
-                          statusLabel: "Completed",
-                          statusColor: "text-green-400",
-                          date: new Date(p.createdAt),
-                          link: null as PaymentLinkRecord | null,
-                        })),
-                        ...paymentLinkHistory.map((r) => {
-                          const expired = new Date(r.expireBy) < new Date();
-                          const statusLabel = r.status === "PAID" ? "Paid" : expired ? "Expired" : "Pending";
-                          const statusColor = r.status === "PAID" ? "text-green-400" : expired ? "text-gray-500" : "text-yellow-400";
-                          return {
-                            key: `link-${r.id}`,
-                            direction: "Customer → Admin",
-                            amount: r.amount,
-                            detail: "Payment Link",
-                            statusLabel,
-                            statusColor,
-                            date: new Date(r.status === "PAID" && r.paidAt ? r.paidAt : r.createdAt),
-                            link: r,
-                          };
-                        }),
-                      ]
-                        .sort((a, b) => b.date.getTime() - a.date.getTime())
-                        .map((row) => (
-                          <div
-                            key={row.key}
-                            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs"
-                          >
-                            <div>
-                              <div className="text-gray-200 font-medium">
-                                {row.direction} · ₹{row.amount} <span className={row.statusColor}>· {row.statusLabel}</span>
-                              </div>
-                              <div className="text-gray-500">
-                                {row.detail} · {formatDateTimeDMY(row.date)}
-                              </div>
-                            </div>
-                            {row.link && row.link.status !== "PAID" && (
-                              <div className="flex items-center gap-3 shrink-0">
-                                <button
-                                  onClick={() => copyHistoryLink(row.link as PaymentLinkRecord)}
-                                  className="text-[#f26522] hover:underline"
-                                >
-                                  {copiedPaymentLinkId === row.link.id ? "Copied!" : "Copy"}
-                                </button>
-                                <button
-                                  onClick={() => markLinkAsPaid(row.link as PaymentLinkRecord)}
-                                  disabled={markingPaidId === row.link.id}
-                                  className="text-green-400 hover:underline disabled:opacity-50"
-                                >
-                                  {markingPaidId === row.link.id ? "Marking..." : "Mark as Paid"}
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-                </>
-              )}
 
-              {activeSection === "documents" && (
-                <div>
-                  <p className="text-xs text-gray-500 mb-3">
-                    {DOCUMENT_FIELDS.filter(({ key }) => Boolean(selected[key])).length}/{DOCUMENT_FIELDS.length} uploaded
-                  </p>
-                  <div className="space-y-2">
-                    {DOCUMENT_FIELDS.map(({ key, label }) => (
-                      <DocumentChip key={key} label={label} url={selected[key] as string | null} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {activeSection === "receipts" && (
-                <>
-                {invoicesLoading ? (
-                  <p className="text-xs text-gray-500">Loading...</p>
-                ) : invoices.length === 0 ? (
-                  <p className="text-xs text-gray-500">No receipts yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {invoices.map((inv) => (
-                      <div
-                        key={inv.id}
-                        className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs"
-                      >
+                    {transactionMode === "pay" ? (
+                      <div className="space-y-3">
                         <div>
-                          <div className="text-gray-200 font-medium">{inv.billNumber}</div>
-                          <div className="text-gray-500">
-                            {inv.productType} · ₹{inv.amount} · {formatDateDMY(inv.documentDate)}
-                          </div>
-                        </div>
-                        <button onClick={() => downloadInvoicePdf(inv)} className="text-[#f26522] hover:underline shrink-0">
-                          Download PDF
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                </>
-              )}
-
-              {activeSection === "product" && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Model Name</label>
-                    <input
-                      type="text"
-                      value={editForm.modelName}
-                      onChange={(e) => setEditForm({ ...editForm, modelName: e.target.value })}
-                      placeholder="e.g. AKV-200"
-                      className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Machine Serial Number</label>
-                    <input
-                      type="text"
-                      value={editForm.machineSerialNumber}
-                      onChange={(e) => setEditForm({ ...editForm, machineSerialNumber: e.target.value })}
-                      placeholder="e.g. SN-000123"
-                      className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {activeSection === "subscription" && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Payment Status</label>
-                      <select
-                        value={editForm.paymentStatus}
-                        onChange={(e) => setEditForm({ ...editForm, paymentStatus: e.target.value })}
-                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                      >
-                        {PAYMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Subscription Status</label>
-                      <select
-                        value={editForm.subscriptionStatus}
-                        onChange={(e) => setEditForm({ ...editForm, subscriptionStatus: e.target.value })}
-                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                      >
-                        {SUBSCRIPTION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Rental Plan (months)</label>
-                      <input
-                        type="number"
-                        value={editForm.rentalPlanDuration}
-                        onChange={(e) => setEditForm({ ...editForm, rentalPlanDuration: e.target.value })}
-                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Rental Amount</label>
-                      <input
-                        type="number"
-                        value={editForm.rentalAmount}
-                        onChange={(e) => setEditForm({ ...editForm, rentalAmount: e.target.value })}
-                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Subscription Start</label>
-                      <input
-                        type="date"
-                        value={editForm.subscriptionStart}
-                        onChange={(e) => setEditForm({ ...editForm, subscriptionStart: e.target.value })}
-                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Subscription End</label>
-                      <input
-                        type="date"
-                        value={editForm.subscriptionEnd}
-                        onChange={(e) => setEditForm({ ...editForm, subscriptionEnd: e.target.value })}
-                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="border-t border-gray-800 pt-4">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Change Plan</h4>
-                    <div className="text-xs text-gray-500 mb-2">
-                      Current: {selected.planDuration} months · ₹{SECURITY_DEPOSIT_AMOUNTS[selected.planDuration]} deposit · ₹{RENTAL_AMOUNTS[selected.planDuration]}/month
-                    </div>
-                    <select
-                      value={newPlanDuration}
-                      onChange={(e) => {
-                        const target = Number(e.target.value);
-                        setNewPlanDuration(e.target.value);
-                        setPlanChangeAmount(String(Math.abs(SECURITY_DEPOSIT_AMOUNTS[target] - SECURITY_DEPOSIT_AMOUNTS[selected.planDuration])));
-                        setPlanChangeTopUpUrl("");
-                        setCopiedTopUpLink(false);
-                      }}
-                      className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                    >
-                      {[12, 24].filter((d) => d !== selected.planDuration).map((d) => (
-                        <option key={d} value={d}>
-                          {d} months · ₹{SECURITY_DEPOSIT_AMOUNTS[d]} deposit · ₹{RENTAL_AMOUNTS[d]}/month
-                        </option>
-                      ))}
-                    </select>
-
-                    {newPlanDuration && (
-                      <>
-                        {planChangeDifference() > 0 ? (
-                          <p className="text-xs text-yellow-400 mt-2">
-                            Customer must pay an additional ₹{planChangeDifference()} deposit top-up.
-                          </p>
-                        ) : (
-                          <p className="text-xs text-yellow-400 mt-2">
-                            ₹{Math.abs(planChangeDifference())} deposit refund is due to the customer.
-                          </p>
-                        )}
-
-                        <div className="mt-2">
-                          <label className="block text-xs text-gray-400 mb-1">
-                            Amount {planChangeDifference() > 0 ? "Paid" : "Refunded"} (₹) &mdash; edit if it differs from the amount above
-                          </label>
+                          <label className="block text-xs text-gray-400 mb-1">Amount</label>
                           <input
                             type="number"
-                            min="0"
-                            value={planChangeAmount}
-                            onChange={(e) => setPlanChangeAmount(e.target.value)}
-                            placeholder="e.g. 1000"
+                            min="1"
+                            value={payoutAmount}
+                            onChange={(e) => setPayoutAmount(e.target.value)}
+                            placeholder="e.g. 100"
                             className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
                           />
                         </div>
-
-                        {planChangeDifference() > 0 && (
-                          <div className="mt-2">
-                            <button
-                              type="button"
-                              onClick={generateTopUpLink}
-                              disabled={generatingTopUpLink}
-                              className="px-3 py-1.5 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50"
-                            >
-                              {generatingTopUpLink ? "Generating..." : `Generate Top-up Link (₹${planChangeDifference()})`}
-                            </button>
-                            {planChangeTopUpUrl && (
-                              <div className="flex items-center justify-between gap-2 mt-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs">
-                                <span className="text-gray-300 truncate">{planChangeTopUpUrl}</span>
-                                <button
-                                  type="button"
-                                  onClick={copyTopUpLink}
-                                  className="text-[#f26522] hover:underline shrink-0"
-                                >
-                                  {copiedTopUpLink ? "Copied!" : "Copy Link"}
-                                </button>
-                              </div>
-                            )}
-                            <p className="text-xs text-gray-500 mt-2">
-                              The plan change applies automatically once this link is paid — no need to also click Confirm below.
-                            </p>
-                          </div>
-                        )}
-
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Reason</label>
+                          <input
+                            type="text"
+                            value={payoutReason}
+                            onChange={(e) => setPayoutReason(e.target.value)}
+                            placeholder="e.g. Deposit refund"
+                            className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                          />
+                        </div>
                         <button
                           type="button"
-                          onClick={confirmPlanChange}
-                          disabled={changingPlan}
-                          className="w-full mt-3 px-3 py-2 text-xs bg-[#f26522]/10 border border-[#f26522]/40 rounded-lg text-[#f26522] hover:bg-[#f26522]/20 transition-colors disabled:opacity-50"
+                          onClick={recordPayout}
+                          disabled={recordingPayout}
+                          className="w-full px-3 py-2 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50"
                         >
-                          {changingPlan ? "Applying..." : "Confirm & Apply Plan Change"}
+                          {recordingPayout ? "Recording..." : "Record Payment"}
                         </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            value={paymentLinkAmount}
+                            onChange={(e) => setPaymentLinkAmount(e.target.value)}
+                            placeholder="e.g. 499"
+                            className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={generatePaymentLink}
+                            disabled={generatingPaymentLink}
+                            className="px-3 py-2 text-xs whitespace-nowrap bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50"
+                          >
+                            {generatingPaymentLink ? "Generating..." : "Generate Payment Link"}
+                          </button>
+                        </div>
+                        {paymentLinkUrl && (
+                          <div className="flex items-center justify-between gap-2 mt-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs">
+                            <span className="text-gray-300 truncate">{paymentLinkUrl}</span>
+                            <button
+                              type="button"
+                              onClick={copyPaymentLink}
+                              className="text-[#f26522] hover:underline shrink-0"
+                            >
+                              {copiedPaymentLink ? "Copied!" : "Copy Link"}
+                            </button>
+                          </div>
+                        )}
+                        <p className="text-xs text-gray-500 mt-2">Link expires 1 hour after generation.</p>
                       </>
                     )}
 
                     <div className="mt-4">
-                      <p className="text-xs text-gray-500 mb-2">History</p>
-                      {(() => {
-                        const planChangeInvoices = invoices.filter(
-                          (inv) => inv.productType === "Security Deposit Top-up (Plan Upgrade)" || inv.productType === "Security Deposit Refund (Plan Downgrade)"
-                        );
-                        if (planChangeInvoices.length === 0) {
-                          return <p className="text-xs text-gray-500">No plan changes yet.</p>;
-                        }
-                        return (
-                          <div className="space-y-2 max-h-48 overflow-y-auto">
-                            {planChangeInvoices.map((inv) => (
+                      <p className="text-xs text-gray-500 mb-2">Transaction History</p>
+                      {payoutHistoryLoading || paymentLinkHistoryLoading ? (
+                        <p className="text-xs text-gray-500">Loading...</p>
+                      ) : payoutHistoryError || paymentLinkHistoryError ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs text-red-400">{payoutHistoryError || paymentLinkHistoryError}</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!selected) return;
+                              loadPayoutHistory(selected.id);
+                              loadPaymentLinkHistory(selected.id);
+                            }}
+                            className="text-xs text-[#f26522] hover:underline shrink-0"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      ) : payoutHistory.length === 0 && paymentLinkHistory.length === 0 ? (
+                        <p className="text-xs text-gray-500">No transactions yet.</p>
+                      ) : (
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {[
+                            ...payoutHistory.map((p) => ({
+                              key: `payout-${p.id}`,
+                              direction: "Admin → Customer",
+                              amount: p.amount,
+                              detail: p.reason,
+                              statusLabel: "Completed",
+                              statusColor: "text-green-400",
+                              date: new Date(p.createdAt),
+                              link: null as PaymentLinkRecord | null,
+                            })),
+                            ...paymentLinkHistory.map((r) => {
+                              const expired = new Date(r.expireBy) < new Date();
+                              const statusLabel = r.status === "PAID" ? "Paid" : expired ? "Expired" : "Pending";
+                              const statusColor = r.status === "PAID" ? "text-green-400" : expired ? "text-gray-500" : "text-yellow-400";
+                              return {
+                                key: `link-${r.id}`,
+                                direction: "Customer → Admin",
+                                amount: r.amount,
+                                detail: "Payment Link",
+                                statusLabel,
+                                statusColor,
+                                date: new Date(r.status === "PAID" && r.paidAt ? r.paidAt : r.createdAt),
+                                link: r,
+                              };
+                            }),
+                          ]
+                            .sort((a, b) => b.date.getTime() - a.date.getTime())
+                            .map((row) => (
                               <div
-                                key={inv.id}
+                                key={row.key}
                                 className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs"
                               >
                                 <div>
                                   <div className="text-gray-200 font-medium">
-                                    ₹{inv.amount}{" "}
-                                    <span className={inv.type === "REFUND" ? "text-yellow-400" : "text-green-400"}>
-                                      · {inv.type === "REFUND" ? "Refunded" : "Received"}
-                                    </span>
+                                    {row.direction} · ₹{row.amount} <span className={row.statusColor}>· {row.statusLabel}</span>
                                   </div>
-                                  <div className="text-gray-500">{formatDateTimeDMY(inv.documentDate)}</div>
-                                </div>
-                                <button onClick={() => downloadInvoicePdf(inv)} className="text-[#f26522] hover:underline shrink-0">
-                                  Download PDF
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeSection === "returns" && (
-                <>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Product Returned</label>
-                    <select
-                      value={editForm.returnRequested}
-                      onChange={(e) => setEditForm({ ...editForm, returnRequested: e.target.value })}
-                      className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                    >
-                      <option value="false">No</option>
-                      <option value="true">Yes</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">
-                      Refund Amount (₹) &mdash; set after inspecting the returned product for damage
-                    </label>
-                    <input
-                      type="number"
-                      value={editForm.refundAmount}
-                      onChange={(e) => setEditForm({ ...editForm, refundAmount: e.target.value })}
-                      placeholder="e.g. 2999, or less if damaged"
-                      className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                    />
-                  </div>
-                </div>
-
-                {selected.returnRequested && (
-                <div className="border-t border-gray-800 mt-6 pt-6">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      Return Process
-                      {selected.returnRequestedAt && (
-                        <span className="normal-case text-gray-500 ml-2 font-normal">
-                          · Return Date: {formatDateDMY(selected.returnRequestedAt)}
-                        </span>
-                      )}
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => setShowReturnHistory((v) => !v)}
-                      className="text-xs text-[#f26522] hover:underline"
-                    >
-                      {showReturnHistory ? "Hide History" : "View History"}
-                    </button>
-                  </div>
-
-                  {!showReturnHistory ? (
-                    <div className="space-y-3">
-                      {RETURN_STEPS.map((step) => {
-                        const latest = latestReturnEvent(step.key);
-                        const form = returnEventForm[step.key] || {
-                          status: step.kind === "boolean" ? "NO" : "PENDING",
-                          eventDate: todayISO(),
-                          eventTime: nowTimeHHMM(),
-                          remarks: "",
-                        };
-                        return (
-                          <div key={step.key} className="bg-[#131724] border border-gray-700 rounded-xl p-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                              <span className="text-sm text-gray-200 font-medium">{step.label}</span>
-                              {latest ? (
-                                <span className={`px-2 py-0.5 rounded-lg text-xs font-medium ${returnEventStatusColor(latest.status)}`}>
-                                  {latest.status} · {formatEventDateTime(latest.eventDate)}
-                                </span>
-                              ) : (
-                                <span className="px-2 py-0.5 rounded-lg text-xs font-medium bg-gray-500/20 text-gray-400">Not started</span>
-                              )}
-                            </div>
-                            {latest && latest.defectImageUrls.length > 0 && (
-                              <div className="flex flex-wrap gap-2 mb-2">
-                                {latest.defectImageUrls.map((url, i) => (
-                                  <a
-                                    key={url}
-                                    href={url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="px-2 py-1 rounded-lg text-xs bg-[#1a1f30] border border-gray-700 text-[#f26522] hover:underline"
-                                  >
-                                    View Picture {i + 1}
-                                  </a>
-                                ))}
-                              </div>
-                            )}
-                            <div className="flex flex-wrap items-end gap-2">
-                              <div>
-                                <label className="block text-xs text-gray-500 mb-1">Status</label>
-                                <select
-                                  value={form.status}
-                                  onChange={(e) =>
-                                    setReturnEventForm((prev) => ({ ...prev, [step.key]: { ...form, status: e.target.value } }))
-                                  }
-                                  className="px-2 py-1.5 bg-[#1a1f30] border border-gray-700 rounded-lg text-xs"
-                                >
-                                  {(step.kind === "boolean" ? ["NO", "YES"] : ["PENDING", "COMPLETED"]).map((v) => (
-                                    <option key={v} value={v}>{v}</option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div>
-                                <label className="block text-xs text-gray-500 mb-1">Date</label>
-                                <input
-                                  type="date"
-                                  value={form.eventDate}
-                                  onChange={(e) =>
-                                    setReturnEventForm((prev) => ({ ...prev, [step.key]: { ...form, eventDate: e.target.value } }))
-                                  }
-                                  className="px-2 py-1.5 bg-[#1a1f30] border border-gray-700 rounded-lg text-xs"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs text-gray-500 mb-1">Time</label>
-                                <input
-                                  type="time"
-                                  value={form.eventTime}
-                                  onChange={(e) =>
-                                    setReturnEventForm((prev) => ({ ...prev, [step.key]: { ...form, eventTime: e.target.value } }))
-                                  }
-                                  className="px-2 py-1.5 bg-[#1a1f30] border border-gray-700 rounded-lg text-xs"
-                                />
-                              </div>
-                              {step.kind === "boolean" && form.status === "YES" && (
-                                <div className="flex-1 min-w-[160px]">
-                                  <label className="block text-xs text-gray-500 mb-1">Remarks</label>
-                                  <input
-                                    type="text"
-                                    value={form.remarks}
-                                    onChange={(e) =>
-                                      setReturnEventForm((prev) => ({ ...prev, [step.key]: { ...form, remarks: e.target.value } }))
-                                    }
-                                    placeholder="Defect details..."
-                                    className="w-full px-2 py-1.5 bg-[#1a1f30] border border-gray-700 rounded-lg text-xs"
-                                  />
-                                </div>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => submitReturnEvent(step.key)}
-                                disabled={savingReturnStep === step.key}
-                                className="px-3 py-1.5 text-xs bg-[#f26522] hover:bg-[#e05a1e] rounded-lg font-medium disabled:opacity-50"
-                              >
-                                {savingReturnStep === step.key ? "Saving..." : "Log Update"}
-                              </button>
-                            </div>
-                            {step.kind === "boolean" && form.status === "YES" && (
-                              <div className="grid grid-cols-3 gap-2 mt-3">
-                                {[0, 1, 2].map((i) => (
-                                  <div key={i}>
-                                    <label className="block text-xs text-gray-500 mb-1">Picture {i + 1}</label>
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      onChange={(e) => {
-                                        const file = e.target.files?.[0] || null;
-                                        setDefectImages((prev) => {
-                                          const next = [...prev];
-                                          next[i] = file;
-                                          return next;
-                                        });
-                                      }}
-                                      className="w-full text-xs text-gray-400 file:mr-2 file:px-2 file:py-1 file:rounded-md file:border-0 file:bg-[#1a1f30] file:text-gray-300 file:text-xs file:cursor-pointer"
-                                    />
+                                  <div className="text-gray-500">
+                                    {row.detail} · {formatDateTimeDMY(row.date)}
                                   </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {returnEventsLoading ? (
-                        <p className="text-xs text-gray-500">Loading...</p>
-                      ) : returnEvents.length === 0 ? (
-                        <p className="text-xs text-gray-500">No updates logged yet.</p>
-                      ) : (
-                        returnEvents.map((ev) => {
-                          const stepLabel = RETURN_STEPS.find((s) => s.key === ev.step)?.label || ev.step;
-                          return (
-                            <div
-                              key={ev.id}
-                              className="flex items-start justify-between gap-3 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs"
-                            >
-                              <div>
-                                <div className="text-gray-200 font-medium">{stepLabel}</div>
-                                <div className="text-gray-500">
-                                  {ev.status} · {formatEventDateTime(ev.eventDate)}
-                                  {ev.remarks && <> · {ev.remarks}</>}
                                 </div>
-                                {ev.defectImageUrls.length > 0 && (
-                                  <div className="flex flex-wrap gap-2 mt-1.5">
-                                    {ev.defectImageUrls.map((url, i) => (
-                                      <a
-                                        key={url}
-                                        href={url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-[#f26522] hover:underline"
-                                      >
-                                        Picture {i + 1}
-                                      </a>
-                                    ))}
+                                {row.link && row.link.status !== "PAID" && (
+                                  <div className="flex items-center gap-3 shrink-0">
+                                    <button
+                                      onClick={() => copyHistoryLink(row.link as PaymentLinkRecord)}
+                                      className="text-[#f26522] hover:underline"
+                                    >
+                                      {copiedPaymentLinkId === row.link.id ? "Copied!" : "Copy"}
+                                    </button>
+                                    <button
+                                      onClick={() => markLinkAsPaid(row.link as PaymentLinkRecord)}
+                                      disabled={markingPaidId === row.link.id}
+                                      className="text-green-400 hover:underline disabled:opacity-50"
+                                    >
+                                      {markingPaidId === row.link.id ? "Marking..." : "Mark as Paid"}
+                                    </button>
                                   </div>
                                 )}
                               </div>
-                              <span className="text-gray-600 shrink-0 whitespace-nowrap">
-                                logged {formatDateTimeDMY(ev.createdAt)}
-                              </span>
-                            </div>
-                          );
-                        })
+                            ))}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
+                  </>
                 )}
-                </>
-              )}
+
+                {activeSection === "documents" && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-3">
+                      {DOCUMENT_FIELDS.filter(({ key }) => Boolean(selected[key])).length}/{DOCUMENT_FIELDS.length} uploaded
+                    </p>
+                    <div className="space-y-2">
+                      {DOCUMENT_FIELDS.map(({ key, label }) => (
+                        <DocumentChip key={key} label={label} url={selected[key] as string | null} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeSection === "receipts" && (
+                  <>
+                    {invoicesLoading ? (
+                      <p className="text-xs text-gray-500">Loading...</p>
+                    ) : invoices.length === 0 ? (
+                      <p className="text-xs text-gray-500">No receipts yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {invoices.map((inv) => (
+                          <div
+                            key={inv.id}
+                            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs"
+                          >
+                            <div>
+                              <div className="text-gray-200 font-medium">{inv.billNumber}</div>
+                              <div className="text-gray-500">
+                                {inv.productType} · ₹{inv.amount} · {formatDateDMY(inv.documentDate)}
+                              </div>
+                            </div>
+                            <button onClick={() => downloadInvoicePdf(inv)} className="text-[#f26522] hover:underline shrink-0">
+                              Download PDF
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {activeSection === "product" && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Model Name</label>
+                      <input
+                        type="text"
+                        value={editForm.modelName}
+                        onChange={(e) => setEditForm({ ...editForm, modelName: e.target.value })}
+                        placeholder="e.g. AKV-200"
+                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Machine Serial Number</label>
+                      <input
+                        type="text"
+                        value={editForm.machineSerialNumber}
+                        onChange={(e) => setEditForm({ ...editForm, machineSerialNumber: e.target.value })}
+                        placeholder="e.g. SN-000123"
+                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {activeSection === "subscription" && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Payment Status</label>
+                        <select
+                          value={editForm.paymentStatus}
+                          onChange={(e) => setEditForm({ ...editForm, paymentStatus: e.target.value })}
+                          className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                        >
+                          {PAYMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Subscription Status</label>
+                        <select
+                          value={editForm.subscriptionStatus}
+                          onChange={(e) => setEditForm({ ...editForm, subscriptionStatus: e.target.value })}
+                          className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                        >
+                          {SUBSCRIPTION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Rental Plan (months)</label>
+                        <input
+                          type="number"
+                          value={editForm.rentalPlanDuration}
+                          onChange={(e) => setEditForm({ ...editForm, rentalPlanDuration: e.target.value })}
+                          className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Rental Amount</label>
+                        <input
+                          type="number"
+                          value={editForm.rentalAmount}
+                          onChange={(e) => setEditForm({ ...editForm, rentalAmount: e.target.value })}
+                          className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Subscription Start</label>
+                        <input
+                          type="date"
+                          value={editForm.subscriptionStart}
+                          onChange={(e) => setEditForm({ ...editForm, subscriptionStart: e.target.value })}
+                          className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Subscription End</label>
+                        <input
+                          type="date"
+                          value={editForm.subscriptionEnd}
+                          onChange={(e) => setEditForm({ ...editForm, subscriptionEnd: e.target.value })}
+                          className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-800 pt-4">
+                      <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Change Plan</h4>
+                      <div className="text-xs text-gray-500 mb-2">
+                        Current: {selected.planDuration} months · ₹{SECURITY_DEPOSIT_AMOUNTS[selected.planDuration]} deposit · ₹{RENTAL_AMOUNTS[selected.planDuration]}/month
+                      </div>
+                      <select
+                        value={newPlanDuration}
+                        onChange={(e) => {
+                          const target = Number(e.target.value);
+                          setNewPlanDuration(e.target.value);
+                          setPlanChangeAmount(String(Math.abs(SECURITY_DEPOSIT_AMOUNTS[target] - SECURITY_DEPOSIT_AMOUNTS[selected.planDuration])));
+                          setPlanChangeTopUpUrl("");
+                          setCopiedTopUpLink(false);
+                        }}
+                        className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                      >
+                        {[12, 24].filter((d) => d !== selected.planDuration).map((d) => (
+                          <option key={d} value={d}>
+                            {d} months · ₹{SECURITY_DEPOSIT_AMOUNTS[d]} deposit · ₹{RENTAL_AMOUNTS[d]}/month
+                          </option>
+                        ))}
+                      </select>
+
+                      {newPlanDuration && (
+                        <>
+                          {planChangeDifference() > 0 ? (
+                            <p className="text-xs text-yellow-400 mt-2">
+                              Customer must pay an additional ₹{planChangeDifference()} deposit top-up.
+                            </p>
+                          ) : (
+                            <p className="text-xs text-yellow-400 mt-2">
+                              ₹{Math.abs(planChangeDifference())} deposit refund is due to the customer.
+                            </p>
+                          )}
+
+                          <div className="mt-2">
+                            <label className="block text-xs text-gray-400 mb-1">
+                              Amount {planChangeDifference() > 0 ? "Paid" : "Refunded"} (₹) &mdash; edit if it differs from the amount above
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={planChangeAmount}
+                              onChange={(e) => setPlanChangeAmount(e.target.value)}
+                              placeholder="e.g. 1000"
+                              className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                            />
+                          </div>
+
+                          {planChangeDifference() > 0 && (
+                            <div className="mt-2">
+                              <button
+                                type="button"
+                                onClick={generateTopUpLink}
+                                disabled={generatingTopUpLink}
+                                className="px-3 py-1.5 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50"
+                              >
+                                {generatingTopUpLink ? "Generating..." : `Generate Top-up Link (₹${planChangeDifference()})`}
+                              </button>
+                              {planChangeTopUpUrl && (
+                                <div className="flex items-center justify-between gap-2 mt-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs">
+                                  <span className="text-gray-300 truncate">{planChangeTopUpUrl}</span>
+                                  <button
+                                    type="button"
+                                    onClick={copyTopUpLink}
+                                    className="text-[#f26522] hover:underline shrink-0"
+                                  >
+                                    {copiedTopUpLink ? "Copied!" : "Copy Link"}
+                                  </button>
+                                </div>
+                              )}
+                              <p className="text-xs text-gray-500 mt-2">
+                                The plan change applies automatically once this link is paid — no need to also click Confirm below.
+                              </p>
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={confirmPlanChange}
+                            disabled={changingPlan}
+                            className="w-full mt-3 px-3 py-2 text-xs bg-[#f26522]/10 border border-[#f26522]/40 rounded-lg text-[#f26522] hover:bg-[#f26522]/20 transition-colors disabled:opacity-50"
+                          >
+                            {changingPlan ? "Applying..." : "Confirm & Apply Plan Change"}
+                          </button>
+                        </>
+                      )}
+
+                      <div className="mt-4">
+                        <p className="text-xs text-gray-500 mb-2">History</p>
+                        {(() => {
+                          const planChangeInvoices = invoices.filter(
+                            (inv) => inv.productType === "Security Deposit Top-up (Plan Upgrade)" || inv.productType === "Security Deposit Refund (Plan Downgrade)"
+                          );
+                          if (planChangeInvoices.length === 0) {
+                            return <p className="text-xs text-gray-500">No plan changes yet.</p>;
+                          }
+                          return (
+                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                              {planChangeInvoices.map((inv) => (
+                                <div
+                                  key={inv.id}
+                                  className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs"
+                                >
+                                  <div>
+                                    <div className="text-gray-200 font-medium">
+                                      ₹{inv.amount}{" "}
+                                      <span className={inv.type === "REFUND" ? "text-yellow-400" : "text-green-400"}>
+                                        · {inv.type === "REFUND" ? "Refunded" : "Received"}
+                                      </span>
+                                    </div>
+                                    <div className="text-gray-500">{formatDateTimeDMY(inv.documentDate)}</div>
+                                  </div>
+                                  <button onClick={() => downloadInvoicePdf(inv)} className="text-[#f26522] hover:underline shrink-0">
+                                    Download PDF
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeSection === "returns" && (
+                  <>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Product Returned</label>
+                        <select
+                          value={editForm.returnRequested}
+                          onChange={(e) => setEditForm({ ...editForm, returnRequested: e.target.value })}
+                          className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                        >
+                          <option value="false">No</option>
+                          <option value="true">Yes</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">
+                          Refund Amount (₹) &mdash; set after inspecting the returned product for damage
+                        </label>
+                        <input
+                          type="number"
+                          value={editForm.refundAmount}
+                          onChange={(e) => setEditForm({ ...editForm, refundAmount: e.target.value })}
+                          placeholder="e.g. 2999, or less if damaged"
+                          className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {selected.returnRequested && (
+                      <div className="border-t border-gray-800 mt-6 pt-6">
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                            Return Process
+                            {selected.returnRequestedAt && (
+                              <span className="normal-case text-gray-500 ml-2 font-normal">
+                                · Return Date: {formatDateDMY(selected.returnRequestedAt)}
+                              </span>
+                            )}
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={() => setShowReturnHistory((v) => !v)}
+                            className="text-xs text-[#f26522] hover:underline"
+                          >
+                            {showReturnHistory ? "Hide History" : "View History"}
+                          </button>
+                        </div>
+
+                        {!showReturnHistory ? (
+                          <div className="space-y-3">
+                            {RETURN_STEPS.map((step) => {
+                              const latest = latestReturnEvent(step.key);
+                              const form = returnEventForm[step.key] || {
+                                status: step.kind === "boolean" ? "NO" : "PENDING",
+                                eventDate: todayISO(),
+                                eventTime: nowTimeHHMM(),
+                                remarks: "",
+                              };
+                              return (
+                                <div key={step.key} className="bg-[#131724] border border-gray-700 rounded-xl p-3">
+                                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                    <span className="text-sm text-gray-200 font-medium">{step.label}</span>
+                                    {latest ? (
+                                      <span className={`px-2 py-0.5 rounded-lg text-xs font-medium ${returnEventStatusColor(latest.status)}`}>
+                                        {latest.status} · {formatEventDateTime(latest.eventDate)}
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 rounded-lg text-xs font-medium bg-gray-500/20 text-gray-400">Not started</span>
+                                    )}
+                                  </div>
+                                  {latest && latest.defectImageUrls.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                      {latest.defectImageUrls.map((url, i) => (
+                                        <a
+                                          key={url}
+                                          href={url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="px-2 py-1 rounded-lg text-xs bg-[#1a1f30] border border-gray-700 text-[#f26522] hover:underline"
+                                        >
+                                          View Picture {i + 1}
+                                        </a>
+                                      ))}
+                                    </div>
+                                  )}
+                                  <div className="flex flex-wrap items-end gap-2">
+                                    <div>
+                                      <label className="block text-xs text-gray-500 mb-1">Status</label>
+                                      <select
+                                        value={form.status}
+                                        onChange={(e) =>
+                                          setReturnEventForm((prev) => ({ ...prev, [step.key]: { ...form, status: e.target.value } }))
+                                        }
+                                        className="px-2 py-1.5 bg-[#1a1f30] border border-gray-700 rounded-lg text-xs"
+                                      >
+                                        {(step.kind === "boolean" ? ["NO", "YES"] : ["PENDING", "COMPLETED"]).map((v) => (
+                                          <option key={v} value={v}>{v}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs text-gray-500 mb-1">Date</label>
+                                      <input
+                                        type="date"
+                                        value={form.eventDate}
+                                        onChange={(e) =>
+                                          setReturnEventForm((prev) => ({ ...prev, [step.key]: { ...form, eventDate: e.target.value } }))
+                                        }
+                                        className="px-2 py-1.5 bg-[#1a1f30] border border-gray-700 rounded-lg text-xs"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs text-gray-500 mb-1">Time</label>
+                                      <input
+                                        type="time"
+                                        value={form.eventTime}
+                                        onChange={(e) =>
+                                          setReturnEventForm((prev) => ({ ...prev, [step.key]: { ...form, eventTime: e.target.value } }))
+                                        }
+                                        className="px-2 py-1.5 bg-[#1a1f30] border border-gray-700 rounded-lg text-xs"
+                                      />
+                                    </div>
+                                    {step.kind === "boolean" && form.status === "YES" && (
+                                      <div className="flex-1 min-w-[160px]">
+                                        <label className="block text-xs text-gray-500 mb-1">Remarks</label>
+                                        <input
+                                          type="text"
+                                          value={form.remarks}
+                                          onChange={(e) =>
+                                            setReturnEventForm((prev) => ({ ...prev, [step.key]: { ...form, remarks: e.target.value } }))
+                                          }
+                                          placeholder="Defect details..."
+                                          className="w-full px-2 py-1.5 bg-[#1a1f30] border border-gray-700 rounded-lg text-xs"
+                                        />
+                                      </div>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => submitReturnEvent(step.key)}
+                                      disabled={savingReturnStep === step.key}
+                                      className="px-3 py-1.5 text-xs bg-[#f26522] hover:bg-[#e05a1e] rounded-lg font-medium disabled:opacity-50"
+                                    >
+                                      {savingReturnStep === step.key ? "Saving..." : "Log Update"}
+                                    </button>
+                                  </div>
+                                  {step.kind === "boolean" && form.status === "YES" && (
+                                    <div className="grid grid-cols-3 gap-2 mt-3">
+                                      {[0, 1, 2].map((i) => (
+                                        <div key={i}>
+                                          <label className="block text-xs text-gray-500 mb-1">Picture {i + 1}</label>
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                              const file = e.target.files?.[0] || null;
+                                              setDefectImages((prev) => {
+                                                const next = [...prev];
+                                                next[i] = file;
+                                                return next;
+                                              });
+                                            }}
+                                            className="w-full text-xs text-gray-400 file:mr-2 file:px-2 file:py-1 file:rounded-md file:border-0 file:bg-[#1a1f30] file:text-gray-300 file:text-xs file:cursor-pointer"
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {returnEventsLoading ? (
+                              <p className="text-xs text-gray-500">Loading...</p>
+                            ) : returnEvents.length === 0 ? (
+                              <p className="text-xs text-gray-500">No updates logged yet.</p>
+                            ) : (
+                              returnEvents.map((ev) => {
+                                const stepLabel = RETURN_STEPS.find((s) => s.key === ev.step)?.label || ev.step;
+                                return (
+                                  <div
+                                    key={ev.id}
+                                    className="flex items-start justify-between gap-3 px-3 py-2 rounded-lg border border-gray-700 bg-[#131724] text-xs"
+                                  >
+                                    <div>
+                                      <div className="text-gray-200 font-medium">{stepLabel}</div>
+                                      <div className="text-gray-500">
+                                        {ev.status} · {formatEventDateTime(ev.eventDate)}
+                                        {ev.remarks && <> · {ev.remarks}</>}
+                                      </div>
+                                      {ev.defectImageUrls.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mt-1.5">
+                                          {ev.defectImageUrls.map((url, i) => (
+                                            <a
+                                              key={url}
+                                              href={url}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="text-[#f26522] hover:underline"
+                                            >
+                                              Picture {i + 1}
+                                            </a>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <span className="text-gray-600 shrink-0 whitespace-nowrap">
+                                      logged {formatDateTimeDMY(ev.createdAt)}
+                                    </span>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 
