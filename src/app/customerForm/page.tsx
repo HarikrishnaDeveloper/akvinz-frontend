@@ -167,7 +167,10 @@ export default function CustomerFormPage() {
       const res = await fetch(`${API_URL}/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount }),
+        // draftId lets the order.paid webhook finalize this registration
+        // server-side even if this browser tab never gets to call
+        // /verify-payment itself (closed, lost connection, etc. right after paying).
+        body: JSON.stringify({ amount, notes: { draftId } }),
       });
 
       const data = await res.json();
