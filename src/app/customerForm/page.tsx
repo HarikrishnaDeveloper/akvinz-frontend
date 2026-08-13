@@ -1006,6 +1006,10 @@ export default function CustomerFormPage() {
           </div>
         )}
       </main>
+
+      <footer className="text-center text-xs text-gray-500 py-4 px-4">
+        RENT O MATE is a registered service of AKVINZ.
+      </footer>
     </div>
   );
 }
