@@ -329,6 +329,17 @@ export default function AdminDashboardPage() {
   const [isExportingCustomers, setIsExportingCustomers] = useState(false);
   const [selected, setSelected] = useState<Customer | null>(null);
   const [selectedDraft, setSelectedDraft] = useState<Draft | null>(null);
+  const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [addForm, setAddForm] = useState({
+    fullName: "", mobileNumber: "", email: "",
+    addressLine1: "", addressLine2: "", city: "", state: "", pincode: "",
+    planDuration: "12", houseType: "rent",
+  });
+  const [addFiles, setAddFiles] = useState<Record<"aadharFrontFile" | "aadharBackFile" | "panFrontFile" | "panBackFile" | "residenceFile", File | null>>({
+    aadharFrontFile: null, aadharBackFile: null, panFrontFile: null, panBackFile: null, residenceFile: null,
+  });
+  const [isAddingCustomer, setIsAddingCustomer] = useState(false);
+  const [addError, setAddError] = useState("");
   const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [copiedLink, setCopiedLink] = useState("");
@@ -991,6 +1002,43 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleAddCustomer = async () => {
+    const { fullName, mobileNumber, email, addressLine1, city, state, pincode } = addForm;
+    if (!fullName || !mobileNumber || !email || !addressLine1 || !city || !state || !pincode) {
+      setAddError("Please fill in all required fields.");
+      return;
+    }
+    setIsAddingCustomer(true);
+    setAddError("");
+    try {
+      const body = new FormData();
+      Object.entries(addForm).forEach(([key, value]) => body.append(key, value));
+      Object.entries(addFiles).forEach(([key, file]) => {
+        if (file) body.append(key, file);
+      });
+
+      const res = await adminFetch("/api/admin/customers", { method: "POST", body });
+      const data = await res.json();
+      if (data.success) {
+        setShowAddCustomer(false);
+        setAddForm({
+          fullName: "", mobileNumber: "", email: "",
+          addressLine1: "", addressLine2: "", city: "", state: "", pincode: "",
+          planDuration: "12", houseType: "rent",
+        });
+        setAddFiles({ aadharFrontFile: null, aadharBackFile: null, panFrontFile: null, panBackFile: null, residenceFile: null });
+        loadCustomers();
+        loadStats();
+      } else {
+        setAddError(data.message || "Failed to add customer");
+      }
+    } catch {
+      setAddError("Error connecting to server");
+    } finally {
+      setIsAddingCustomer(false);
+    }
+  };
+
   const copyDraftLink = async (draft: Draft) => {
     const url = `${window.location.origin}/customerForm?draft=${draft.id}`;
     try {
@@ -1166,6 +1214,16 @@ export default function AdminDashboardPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
                 </svg>
                 {isExportingCustomers ? "Exporting..." : "Download"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAddError(""); setShowAddCustomer(true); }}
+                className="px-4 py-2.5 bg-[#f26522] hover:bg-[#e05a1e] rounded-xl text-white text-sm font-medium transition-colors flex items-center justify-center gap-2 shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Add Customer
               </button>
             </div>
 
@@ -2179,6 +2237,169 @@ export default function AdminDashboardPage() {
                   {isSaving ? "Saving..." : "Save Changes"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddCustomer && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center px-4 z-50">
+          <div className="bg-[#1a1f30] border border-gray-700/50 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-800 shrink-0">
+              <div>
+                <h2 className="text-lg font-bold">Add Customer</h2>
+                <p className="text-gray-400 text-sm mt-0.5">Manually add a customer — no OTP or payment required.</p>
+              </div>
+              <button
+                onClick={() => setShowAddCustomer(false)}
+                aria-label="Close"
+                className="text-gray-400 hover:text-white shrink-0"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4 text-sm">
+              {addError && <p className="text-sm text-red-400">{addError}</p>}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs text-gray-400 mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    value={addForm.fullName}
+                    onChange={(e) => setAddForm({ ...addForm, fullName: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Mobile Number *</label>
+                  <input
+                    type="text"
+                    value={addForm.mobileNumber}
+                    onChange={(e) => setAddForm({ ...addForm, mobileNumber: e.target.value })}
+                    placeholder="10-digit number"
+                    className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Email *</label>
+                  <input
+                    type="email"
+                    value={addForm.email}
+                    onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs text-gray-400 mb-1">Address Line 1 *</label>
+                  <input
+                    type="text"
+                    value={addForm.addressLine1}
+                    onChange={(e) => setAddForm({ ...addForm, addressLine1: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs text-gray-400 mb-1">Address Line 2</label>
+                  <input
+                    type="text"
+                    value={addForm.addressLine2}
+                    onChange={(e) => setAddForm({ ...addForm, addressLine2: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">City *</label>
+                  <input
+                    type="text"
+                    value={addForm.city}
+                    onChange={(e) => setAddForm({ ...addForm, city: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">State *</label>
+                  <input
+                    type="text"
+                    value={addForm.state}
+                    onChange={(e) => setAddForm({ ...addForm, state: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Pincode *</label>
+                  <input
+                    type="text"
+                    value={addForm.pincode}
+                    onChange={(e) => setAddForm({ ...addForm, pincode: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Plan Duration</label>
+                  <select
+                    value={addForm.planDuration}
+                    onChange={(e) => setAddForm({ ...addForm, planDuration: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                  >
+                    <option value="12">12 months</option>
+                    <option value="24">24 months</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs text-gray-400 mb-1">House Type</label>
+                  <select
+                    value={addForm.houseType}
+                    onChange={(e) => setAddForm({ ...addForm, houseType: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                  >
+                    <option value="rent">Rent</option>
+                    <option value="permanent">Permanent</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-800 pt-4">
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Documents (optional)</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {([
+                    ["aadharFrontFile", "Aadhaar (Front)"],
+                    ["aadharBackFile", "Aadhaar (Back)"],
+                    ["panFrontFile", "PAN (Front)"],
+                    ["panBackFile", "PAN (Back)"],
+                    ["residenceFile", "Residence Proof"],
+                  ] as const).map(([key, label]) => (
+                    <div key={key}>
+                      <label className="block text-xs text-gray-400 mb-1">{label}</label>
+                      <input
+                        type="file"
+                        accept=".png,.jpg,.jpeg,.pdf"
+                        onChange={(e) => setAddFiles({ ...addFiles, [key]: e.target.files?.[0] || null })}
+                        className="w-full text-xs text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-gray-700 file:bg-[#131724] file:text-gray-300 file:text-xs"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-800 shrink-0">
+              <button
+                onClick={() => setShowAddCustomer(false)}
+                className="px-4 py-2 text-sm text-gray-300 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddCustomer}
+                disabled={isAddingCustomer}
+                className="px-4 py-2 text-sm bg-[#f26522] hover:bg-[#e05a1e] rounded-lg font-medium disabled:opacity-50"
+              >
+                {isAddingCustomer ? "Adding..." : "Add Customer"}
+              </button>
             </div>
           </div>
         </div>
