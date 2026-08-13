@@ -275,12 +275,11 @@ function DocumentChip({ label, url }: { label: string; url: string | null }) {
   );
 }
 
-function StatCard({ label, value, description }: { label: string; value: string | number; description?: string }) {
+function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-[#1a1f30] border border-gray-700/50 rounded-2xl p-5 flex flex-col">
-      <p className="text-gray-400 text-sm leading-tight min-h-[2.5rem]">{label}</p>
-      <p className="text-2xl font-bold text-white mt-1">{value}</p>
-      {description && <p className="text-gray-500 text-xs mt-1 leading-snug">{description}</p>}
+    <div className="bg-[#1a1f30] border border-gray-700/50 rounded-xl p-3 flex flex-col">
+      <p className="text-gray-400 text-xs leading-tight">{label}</p>
+      <p className="text-xl font-bold text-white mt-1">{value}</p>
     </div>
   );
 }
@@ -1093,18 +1092,18 @@ export default function AdminDashboardPage() {
         </div>
 
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-            <StatCard label="Total Customers" value={stats.totalCustomers} description="Count all unique customers" />
-            <StatCard label="Total Subscribers" value={stats.totalSubscribers} description="Unique customers who successfully paid the security deposit" />
-            <StatCard label="12-Month Customers" value={stats.twelveMonthCustomers} description="Unique customers with an active/paid 12-month subscription" />
-            <StatCard label="24-Month Customers" value={stats.twentyFourMonthCustomers} description="Unique customers with an active/paid 24-month subscription" />
-            <StatCard label="Rental Paid" value={stats.rentalPaid} description="Unique customers who paid rental" />
-            <StatCard label="Rental Due" value={stats.rentalDue} description="Unique customers with outstanding rental payment" />
-            <StatCard label="Returns Initiated" value={stats.returnsInitiated} description="Unique customers who initiated a return" />
-            <StatCard label="Customers Refunded" value={stats.customersRefunded} description="Unique customers who received a completed refund" />
-            <StatCard label="Assets Received" value={stats.assetsReceived} description="Unique customers whose returned machine is back in the warehouse" />
-            <StatCard label="Rental Revenue" value={`₹${stats.rentalRevenue}`} description="Total ₹ collected from successful rental payments" />
-            <StatCard label="Total Deposits" value={`₹${stats.totalDeposits}`} description="Total ₹ collected as security deposits" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            <StatCard label="Total Customers" value={stats.totalCustomers} />
+            <StatCard label="Total Subscribers" value={stats.totalSubscribers} />
+            <StatCard label="12-Month Customers" value={stats.twelveMonthCustomers} />
+            <StatCard label="24-Month Customers" value={stats.twentyFourMonthCustomers} />
+            <StatCard label="Rental Paid" value={stats.rentalPaid} />
+            <StatCard label="Rental Due" value={stats.rentalDue} />
+            <StatCard label="Returns Initiated" value={stats.returnsInitiated} />
+            <StatCard label="Customers Refunded" value={stats.customersRefunded} />
+            <StatCard label="Assets Received" value={stats.assetsReceived} />
+            <StatCard label="Rental Revenue" value={`₹${stats.rentalRevenue}`} />
+            <StatCard label="Total Deposits" value={`₹${stats.totalDeposits}`} />
           </div>
         )}
 
