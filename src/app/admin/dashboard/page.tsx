@@ -112,13 +112,11 @@ interface Stats {
   assetsReceived: number;
 }
 
-const PAYMENT_STATUSES = ["PENDING", "COMPLETED", "FAILED", "PENDING_REFUND", "REFUNDED"];
 const SECURITY_DEPOSIT_STATUSES: { value: string; label: string }[] = [
   { value: "COMPLETED", label: "Security Deposit Completed" },
   { value: "REFUNDED", label: "Refunded" },
   { value: "PENDING_REFUND", label: "Pending Refund" },
 ];
-const SUBSCRIPTION_STATUSES = ["INACTIVE", "ACTIVE", "CANCELLED"];
 const SUBSCRIPTION_STATUS_FILTERS: { value: string; label: string }[] = [
   { value: "INACTIVE", label: "Inactive" },
   { value: "ACTIVE", label: "Active" },
@@ -1731,36 +1729,45 @@ export default function AdminDashboardPage() {
                           onChange={(e) => setEditForm({ ...editForm, paymentStatus: e.target.value })}
                           className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
                         >
-                          {PAYMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                          {SECURITY_DEPOSIT_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Subscription Status</label>
+                        <label className="block text-xs text-gray-400 mb-1">
+                          Subscription Status
+                          {isOverdueCustomer(selected) && (
+                            <span className="ml-2 normal-case text-yellow-400 font-normal">(Pending Due)</span>
+                          )}
+                        </label>
                         <select
                           value={editForm.subscriptionStatus}
                           onChange={(e) => setEditForm({ ...editForm, subscriptionStatus: e.target.value })}
                           className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
                         >
-                          {SUBSCRIPTION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                          {SUBSCRIPTION_STATUS_FILTERS.filter((s) => s.value !== "PENDING_DUE").map((s) => (
+                            <option key={s.value} value={s.value}>{s.label}</option>
+                          ))}
                         </select>
                       </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Rental Plan (months)</label>
-                        <input
-                          type="number"
+                      <div className="col-span-2">
+                        <label className="block text-xs text-gray-400 mb-1">Rental Plan</label>
+                        <select
                           value={editForm.rentalPlanDuration}
-                          onChange={(e) => setEditForm({ ...editForm, rentalPlanDuration: e.target.value })}
+                          onChange={(e) => {
+                            const duration = e.target.value;
+                            setEditForm({
+                              ...editForm,
+                              rentalPlanDuration: duration,
+                              rentalAmount: duration ? String(RENTAL_AMOUNTS[Number(duration)]) : ""
+                            });
+                          }}
                           className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Rental Amount</label>
-                        <input
-                          type="number"
-                          value={editForm.rentalAmount}
-                          onChange={(e) => setEditForm({ ...editForm, rentalAmount: e.target.value })}
-                          className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                        />
+                        >
+                          <option value="">Not set</option>
+                          {[12, 24].map((d) => (
+                            <option key={d} value={d}>{d} months · ₹{RENTAL_AMOUNTS[d]}/month</option>
+                          ))}
+                        </select>
                       </div>
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Subscription Start</label>
