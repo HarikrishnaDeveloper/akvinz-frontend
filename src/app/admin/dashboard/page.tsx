@@ -1111,7 +1111,7 @@ export default function AdminDashboardPage() {
                 onChange={(e) => setAssetStatus(e.target.value)}
                 className="px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl text-white text-sm"
               >
-                <option value="">All Asset Status</option>
+                <option value="">Asset Status</option>
                 <option value="RECEIVED">Asset Received</option>
                 <option value="NOT_RECEIVED">Asset Not Received</option>
               </select>
@@ -1371,8 +1371,8 @@ export default function AdminDashboardPage() {
                     type="button"
                     onClick={() => setActiveSection(s.key)}
                     className={`shrink-0 text-left px-4 py-2.5 text-xs font-medium uppercase tracking-wider whitespace-nowrap transition-colors border-b-2 sm:border-b-0 sm:border-l-2 ${activeSection === s.key
-                        ? "border-[#f26522] text-[#f26522] bg-[#f26522]/10"
-                        : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
+                      ? "border-[#f26522] text-[#f26522] bg-[#f26522]/10"
+                      : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
                       }`}
                   >
                     {s.label}
@@ -1431,8 +1431,8 @@ export default function AdminDashboardPage() {
                         type="button"
                         onClick={() => setTransactionMode("pay")}
                         className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${transactionMode === "pay"
-                            ? "bg-[#f26522]/10 border-[#f26522]/40 text-[#f26522]"
-                            : "bg-[#131724] border-gray-700 text-gray-300 hover:text-white hover:border-gray-500"
+                          ? "bg-[#f26522]/10 border-[#f26522]/40 text-[#f26522]"
+                          : "bg-[#131724] border-gray-700 text-gray-300 hover:text-white hover:border-gray-500"
                           }`}
                       >
                         Pay Customer
@@ -1441,8 +1441,8 @@ export default function AdminDashboardPage() {
                         type="button"
                         onClick={() => setTransactionMode("collect")}
                         className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${transactionMode === "collect"
-                            ? "bg-[#f26522]/10 border-[#f26522]/40 text-[#f26522]"
-                            : "bg-[#131724] border-gray-700 text-gray-300 hover:text-white hover:border-gray-500"
+                          ? "bg-[#f26522]/10 border-[#f26522]/40 text-[#f26522]"
+                          : "bg-[#131724] border-gray-700 text-gray-300 hover:text-white hover:border-gray-500"
                           }`}
                       >
                         Collect From Customer

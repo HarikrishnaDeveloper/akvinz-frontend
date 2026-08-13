@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { API_URL, downloadFile } from "@/lib/api";
+import TermsContent from "./TermsContent";
 
 export default function CustomerFormPage() {
   const permanentDocOptions = ["EB Bill", "Gas Bill", "House Tax Bill"];
@@ -39,6 +40,8 @@ export default function CustomerFormPage() {
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [mobileAlreadyRegistered, setMobileAlreadyRegistered] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsExpanded, setTermsExpanded] = useState(false);
 
   // Payment State
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -268,6 +271,10 @@ export default function CustomerFormPage() {
   const handleVerifyOtp = async () => {
     if (!otpCode || otpCode.length !== 6) {
       setOtpError("Please enter the 6-digit OTP.");
+      return;
+    }
+    if (!termsAccepted) {
+      setOtpError("Please accept the AKVINZ Subscription Agreement before verifying.");
       return;
     }
     setIsVerifyingOtp(true);
@@ -628,6 +635,42 @@ export default function CustomerFormPage() {
                       )}
                     </div>
 
+                    {!otpVerified && (
+                      <div className="mt-3 border border-gray-700 rounded-xl bg-[#131724] overflow-hidden">
+                        <div className="flex items-center gap-3 px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={termsAccepted}
+                            onChange={(e) => setTermsAccepted(e.target.checked)}
+                            className="w-5 h-5 rounded border-gray-600 bg-[#1a1f30] text-[#f26522] focus:ring-1 focus:ring-[#f26522] accent-[#f26522] shrink-0"
+                          />
+                          <span className="text-sm text-gray-300 flex-grow">
+                            I have read and accept the AKVINZ Subscription Agreement
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setTermsExpanded((v) => !v)}
+                            aria-label={termsExpanded ? "Collapse terms" : "Expand terms"}
+                            className="p-1 text-gray-400 hover:text-white transition-colors shrink-0"
+                          >
+                            <svg
+                              className={`w-5 h-5 transition-transform ${termsExpanded ? "rotate-180" : ""}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                          </button>
+                        </div>
+                        {termsExpanded && (
+                          <div className="max-h-96 overflow-y-auto border-t border-gray-700 px-4 py-4 bg-[#1a1f30]">
+                            <TermsContent />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {otpSent && !otpVerified && (
                       <div className="mt-3 flex flex-col sm:flex-row gap-3">
                         <input
@@ -641,12 +684,17 @@ export default function CustomerFormPage() {
                         <button
                           type="button"
                           onClick={handleVerifyOtp}
-                          disabled={isVerifyingOtp || otpCode.length !== 6}
+                          disabled={isVerifyingOtp || otpCode.length !== 6 || !termsAccepted}
                           className="w-full sm:w-auto px-6 py-3 bg-[#f26522] hover:bg-[#e05a1e] text-white font-medium rounded-xl shadow-lg shadow-[#f26522]/20 transition-all disabled:opacity-50"
                         >
                           {isVerifyingOtp ? "Verifying..." : "Verify OTP"}
                         </button>
                       </div>
+                    )}
+                    {otpSent && !otpVerified && !termsAccepted && (
+                      <p className="mt-2 text-xs text-yellow-400">
+                        Please accept the Subscription Agreement above before verifying your OTP.
+                      </p>
                     )}
 
                     {otpError && (
