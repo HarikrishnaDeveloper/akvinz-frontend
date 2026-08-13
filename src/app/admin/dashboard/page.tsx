@@ -497,7 +497,7 @@ export default function AdminDashboardPage() {
       const header = [
         "Name", "Mobile", "Email", "Address Line 1", "Address Line 2", "City", "State", "Pincode",
         "Plan Duration (months)", "House Type", "Payment Status", "Subscription Status",
-        "Model", "Serial Number", "Rental Amount", "Due Date", "Last Rental Payment",
+        "Model", "Serial Number", "Security Deposit", "Rental Amount", "Due Date", "Last Rental Payment",
         "Joined", "Return Requested", "Return Requested At", "Refund Amount",
       ];
       const rows = all.map((c) => [
@@ -515,6 +515,7 @@ export default function AdminDashboardPage() {
         c.subscriptionStatus,
         c.modelName,
         c.machineSerialNumber,
+        SECURITY_DEPOSIT_AMOUNTS[c.planDuration] ?? "",
         c.rentalAmount,
         c.subscriptionEnd ? formatDateDMY(c.subscriptionEnd) : "",
         c.lastPaymentDate ? formatDateDMY(c.lastPaymentDate) : "",
@@ -1103,7 +1104,7 @@ export default function AdminDashboardPage() {
             <StatCard label="Customers Refunded" value={stats.customersRefunded} />
             <StatCard label="Assets Received" value={stats.assetsReceived} />
             <StatCard label="Rental Revenue" value={`₹${stats.rentalRevenue}`} />
-            <StatCard label="Total Deposits" value={`₹${stats.totalDeposits}`} />
+            <StatCard label="Security Deposits" value={`₹${stats.totalDeposits}`} />
           </div>
         )}
 
@@ -1391,12 +1392,6 @@ export default function AdminDashboardPage() {
                 <p className="text-gray-400 text-sm mt-0.5">{selected.email} · {selected.mobileNumber}</p>
               </div>
               <div className="flex items-center gap-4 shrink-0">
-                <button
-                  onClick={() => handleDelete(selected)}
-                  className="text-sm text-red-400 hover:underline"
-                >
-                  Delete Customer
-                </button>
                 <button
                   onClick={() => setSelected(null)}
                   aria-label="Close"
@@ -2164,20 +2159,28 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-800 shrink-0">
+            <div className="flex justify-between items-center gap-3 px-6 py-4 border-t border-gray-800 shrink-0">
               <button
-                onClick={() => setSelected(null)}
-                className="px-4 py-2 text-sm text-gray-300 hover:text-white"
+                onClick={() => handleDelete(selected)}
+                className="text-sm text-red-400 hover:underline"
               >
-                Cancel
+                Delete Customer
               </button>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="px-4 py-2 text-sm bg-[#f26522] hover:bg-[#e05a1e] rounded-lg font-medium disabled:opacity-50"
-              >
-                {isSaving ? "Saving..." : "Save Changes"}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setSelected(null)}
+                  className="px-4 py-2 text-sm text-gray-300 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="px-4 py-2 text-sm bg-[#f26522] hover:bg-[#e05a1e] rounded-lg font-medium disabled:opacity-50"
+                >
+                  {isSaving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
