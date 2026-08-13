@@ -515,7 +515,7 @@ export default function RentalFormPage() {
                 {assetTermsExpanded && (
                   <div className="max-h-72 overflow-y-auto border-t border-gray-700 px-4 py-4 bg-[#1a1f30] space-y-4 text-sm text-gray-300 leading-relaxed">
                     <div>
-                      <h4 className="text-white font-semibold mb-1">4.1 Acceptance of Asset</h4>
+                      <h4 className="text-white font-semibold mb-1">Acceptance of Asset</h4>
                       <p>
                         The Subscriber hereby declares that they have personally inspected the Product and find it
                         completely operational, fit for purpose, and satisfying all parameters of the execution
@@ -524,7 +524,7 @@ export default function RentalFormPage() {
                       </p>
                     </div>
                     <div>
-                      <h4 className="text-white font-semibold mb-1">4.2 Reaffirmation of Ownership</h4>
+                      <h4 className="text-white font-semibold mb-1">Reaffirmation of Ownership</h4>
                       <p>
                         The Subscriber explicitly reiterates that they possess absolutely no proprietary title,
                         stake, or ownership over the Product or its ancillary hardware. Ownership vests exclusively
@@ -532,7 +532,7 @@ export default function RentalFormPage() {
                       </p>
                     </div>
                     <div>
-                      <h4 className="text-white font-semibold mb-1">4.3 Care and Maintenance Boundaries</h4>
+                      <h4 className="text-white font-semibold mb-1">Care and Maintenance Boundaries</h4>
                       <p>
                         The Subscriber undertakes to operate the machine strictly as per provided guidelines,
                         ensuring stable power inputs and regular raw water inflow. Any internal alterations, housing
