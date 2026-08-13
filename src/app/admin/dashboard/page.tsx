@@ -145,7 +145,14 @@ const RETURN_STEPS: { key: string; label: string; kind: "status" | "boolean" }[]
 ];
 
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Local calendar date, not UTC — toISOString() is UTC and rolls over to the
+  // previous/next day during early-morning/late-night hours in timezones
+  // ahead of UTC (e.g. IST), which desyncs it from nowTimeHHMM() below.
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function nowTimeHHMM(): string {
@@ -670,6 +677,24 @@ export default function AdminDashboardPage() {
       })
       .finally(() => setReturnEventsLoading(false));
   }, [selected]);
+
+  // The date/time defaults above are only set once when the customer modal
+  // opens — if the admin sits on other tabs first and returns to Returns &
+  // Refund later, those defaults go stale. Refresh just eventDate/eventTime
+  // (not status/remarks, so in-progress edits aren't lost) every time this
+  // tab becomes active.
+  useEffect(() => {
+    if (activeSection !== "returns") return;
+    setReturnEventForm((prev) => {
+      const updated = { ...prev };
+      RETURN_STEPS.forEach((s) => {
+        if (updated[s.key]) {
+          updated[s.key] = { ...updated[s.key], eventDate: todayISO(), eventTime: nowTimeHHMM() };
+        }
+      });
+      return updated;
+    });
+  }, [activeSection]);
 
   const latestReturnEvent = (step: string): ReturnEvent | undefined =>
     returnEvents.find((e) => e.step === step);
