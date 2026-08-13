@@ -104,7 +104,18 @@ interface Stats {
 }
 
 const PAYMENT_STATUSES = ["PENDING", "COMPLETED", "FAILED", "PENDING_REFUND", "REFUNDED"];
+const SECURITY_DEPOSIT_STATUSES: { value: string; label: string }[] = [
+  { value: "COMPLETED", label: "Security Deposit Completed" },
+  { value: "REFUNDED", label: "Refunded" },
+  { value: "PENDING_REFUND", label: "Pending Refund" },
+];
 const SUBSCRIPTION_STATUSES = ["INACTIVE", "ACTIVE", "CANCELLED"];
+const SUBSCRIPTION_STATUS_FILTERS: { value: string; label: string }[] = [
+  { value: "INACTIVE", label: "Inactive" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "PENDING_DUE", label: "Pending Due" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
 
 const SECURITY_DEPOSIT_AMOUNTS: Record<number, number> = { 12: 3, 24: 4 };
 const RENTAL_AMOUNTS: Record<number, number> = { 12: 2, 24: 1 };
@@ -183,6 +194,24 @@ function returnEventStatusColor(status: string): string {
   if (status === "COMPLETED" || status === "NO") return "bg-green-500/20 text-green-400";
   if (status === "YES") return "bg-red-500/20 text-red-400";
   return "bg-gray-500/20 text-gray-400";
+}
+
+function isOverdueCustomer(customer: Customer): boolean {
+  if (customer.subscriptionStatus !== "ACTIVE" || !customer.subscriptionEnd) return false;
+  const due = new Date(customer.subscriptionEnd);
+  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+  const today = new Date();
+  const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return dueDay.getTime() < todayDay.getTime();
+}
+
+async function isAssetReceived(customerId: string): Promise<boolean> {
+  const res = await adminFetch(`/api/admin/customers/${customerId}/return-events`);
+  const data = await res.json();
+  if (!data.success) return false;
+  const events: ReturnEvent[] = data.events;
+  const latest = events.find((e) => e.step === "MACHINE_RECEIVED_WAREHOUSE");
+  return latest?.status === "COMPLETED";
 }
 
 function DueDateCell({ customer }: { customer: Customer }) {
@@ -290,7 +319,7 @@ export default function AdminDashboardPage() {
   const [search, setSearch] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const [subscriptionStatus, setSubscriptionStatus] = useState("");
-  const [returnRequested, setReturnRequested] = useState("");
+  const [assetStatus, setAssetStatus] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [isExportingCustomers, setIsExportingCustomers] = useState(false);
@@ -351,15 +380,70 @@ export default function AdminDashboardPage() {
     if (data.success) setStats(data.stats);
   }, []);
 
+  const fetchAllCustomers = useCallback(async (statusOverride?: string, returnRequestedOverride?: string) => {
+    const all: Customer[] = [];
+    let fetchPage = 1;
+    let fetchTotalPages = 1;
+    do {
+      const params = new URLSearchParams({ page: String(fetchPage), limit: "100" });
+      if (search) params.set("search", search);
+      if (paymentStatus) params.set("paymentStatus", paymentStatus);
+      if (statusOverride) params.set("subscriptionStatus", statusOverride);
+      if (returnRequestedOverride) params.set("returnRequested", returnRequestedOverride);
+
+      const res = await adminFetch(`/api/admin/customers?${params.toString()}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || "Failed to load customers");
+      all.push(...data.customers);
+      fetchTotalPages = data.pagination.totalPages || 1;
+      fetchPage += 1;
+    } while (fetchPage <= fetchTotalPages);
+    return all;
+  }, [search, paymentStatus]);
+
   const loadCustomers = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
+      // "Pending Due" isn't a real backend status — it's an ACTIVE subscription whose
+      // due date has passed. "Active" here means paid/up-to-date, so both need the
+      // full ACTIVE set fetched and split client-side by due date.
+      const needsSubscriptionSplit = subscriptionStatus === "PENDING_DUE" || subscriptionStatus === "ACTIVE";
+      // Asset received/not-received isn't a stored field either — it's derived from
+      // the latest "Machine Received at Warehouse" return event for customers who
+      // have a return in progress, so it also needs client-side filtering.
+      const needsAssetSplit = assetStatus === "RECEIVED" || assetStatus === "NOT_RECEIVED";
+
+      if (needsSubscriptionSplit || needsAssetSplit) {
+        let all = await fetchAllCustomers(
+          needsSubscriptionSplit ? "ACTIVE" : subscriptionStatus || undefined,
+          needsAssetSplit ? "true" : undefined
+        );
+
+        if (needsSubscriptionSplit) {
+          all = all.filter((c) =>
+            subscriptionStatus === "PENDING_DUE" ? isOverdueCustomer(c) : !isOverdueCustomer(c)
+          );
+        }
+
+        if (needsAssetSplit) {
+          const received = await Promise.all(all.map((c) => isAssetReceived(c.id)));
+          all = all.filter((_, i) => (assetStatus === "RECEIVED" ? received[i] : !received[i]));
+        }
+
+        const pageSize = 20;
+        const computedTotalPages = Math.max(1, Math.ceil(all.length / pageSize));
+        const safePage = Math.min(page, computedTotalPages);
+        setCustomers(all.slice((safePage - 1) * pageSize, safePage * pageSize));
+        setTotalPages(computedTotalPages);
+        if (safePage !== page) setPage(safePage);
+        return;
+      }
+
       const params = new URLSearchParams({ page: String(page), limit: "20" });
       if (search) params.set("search", search);
       if (paymentStatus) params.set("paymentStatus", paymentStatus);
       if (subscriptionStatus) params.set("subscriptionStatus", subscriptionStatus);
-      if (returnRequested) params.set("returnRequested", returnRequested);
 
       const res = await adminFetch(`/api/admin/customers?${params.toString()}`);
       const data = await res.json();
@@ -369,38 +453,35 @@ export default function AdminDashboardPage() {
       } else {
         setError(data.message || "Failed to load customers");
       }
-    } catch {
-      setError("Error connecting to server");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error connecting to server");
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, paymentStatus, subscriptionStatus, returnRequested]);
+  }, [page, search, paymentStatus, subscriptionStatus, assetStatus, fetchAllCustomers]);
 
   const handleExportCustomers = useCallback(async () => {
     setIsExportingCustomers(true);
     setError("");
     try {
-      const all: Customer[] = [];
-      let exportPage = 1;
-      let exportTotalPages = 1;
+      const needsSubscriptionSplit = subscriptionStatus === "PENDING_DUE" || subscriptionStatus === "ACTIVE";
+      const needsAssetSplit = assetStatus === "RECEIVED" || assetStatus === "NOT_RECEIVED";
 
-      do {
-        const params = new URLSearchParams({ page: String(exportPage), limit: "100" });
-        if (search) params.set("search", search);
-        if (paymentStatus) params.set("paymentStatus", paymentStatus);
-        if (subscriptionStatus) params.set("subscriptionStatus", subscriptionStatus);
-        if (returnRequested) params.set("returnRequested", returnRequested);
+      let all = await fetchAllCustomers(
+        needsSubscriptionSplit ? "ACTIVE" : subscriptionStatus || undefined,
+        needsAssetSplit ? "true" : undefined
+      );
 
-        const res = await adminFetch(`/api/admin/customers?${params.toString()}`);
-        const data = await res.json();
-        if (!data.success) {
-          setError(data.message || "Failed to export customers");
-          return;
-        }
-        all.push(...data.customers);
-        exportTotalPages = data.pagination.totalPages || 1;
-        exportPage += 1;
-      } while (exportPage <= exportTotalPages);
+      if (needsSubscriptionSplit) {
+        all = all.filter((c) =>
+          subscriptionStatus === "PENDING_DUE" ? isOverdueCustomer(c) : !isOverdueCustomer(c)
+        );
+      }
+
+      if (needsAssetSplit) {
+        const received = await Promise.all(all.map((c) => isAssetReceived(c.id)));
+        all = all.filter((_, i) => (assetStatus === "RECEIVED" ? received[i] : !received[i]));
+      }
 
       const header = [
         "Name", "Mobile", "Email", "Address Line 1", "Address Line 2", "City", "State", "Pincode",
@@ -433,12 +514,12 @@ export default function AdminDashboardPage() {
       ]);
 
       downloadCsv(`customers-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...rows]);
-    } catch {
-      setError("Error connecting to server");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error connecting to server");
     } finally {
       setIsExportingCustomers(false);
     }
-  }, [search, paymentStatus, subscriptionStatus, returnRequested]);
+  }, [subscriptionStatus, assetStatus, fetchAllCustomers]);
 
   const loadDrafts = useCallback(async () => {
     setDraftsLoading(true);
@@ -476,7 +557,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, paymentStatus, subscriptionStatus, returnRequested]);
+  }, [search, paymentStatus, subscriptionStatus, assetStatus]);
 
   useEffect(() => {
     setDraftsPage(1);
@@ -1010,9 +1091,9 @@ export default function AdminDashboardPage() {
               onChange={(e) => setPaymentStatus(e.target.value)}
               className="px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl text-white text-sm"
             >
-              <option value="">All Payment Status</option>
-              {PAYMENT_STATUSES.map((s) => (
-                <option key={s} value={s}>{s}</option>
+              <option value="">All Security Deposit Status</option>
+              {SECURITY_DEPOSIT_STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>
             <select
@@ -1021,18 +1102,18 @@ export default function AdminDashboardPage() {
               className="px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl text-white text-sm"
             >
               <option value="">All Subscription Status</option>
-              {SUBSCRIPTION_STATUSES.map((s) => (
-                <option key={s} value={s}>{s}</option>
+              {SUBSCRIPTION_STATUS_FILTERS.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>
             <select
-              value={returnRequested}
-              onChange={(e) => setReturnRequested(e.target.value)}
+              value={assetStatus}
+              onChange={(e) => setAssetStatus(e.target.value)}
               className="px-4 py-2.5 bg-[#131724] border border-gray-700 rounded-xl text-white text-sm"
             >
-              <option value="">All Returns</option>
-              <option value="true">Returned</option>
-              <option value="false">Not Returned</option>
+              <option value="">All Asset Status</option>
+              <option value="RECEIVED">Asset Received</option>
+              <option value="NOT_RECEIVED">Asset Not Received</option>
             </select>
             <button
               type="button"
