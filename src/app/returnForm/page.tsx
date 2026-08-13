@@ -269,7 +269,7 @@ export default function ReturnFormPage() {
               </div>
 
               {otpVerified && customer && (
-                customer.subscriptionStatus === "ACTIVE" ? (
+                ["ACTIVE", "PENDING_DUE"].includes(customer.subscriptionStatus) ? (
                   <button
                     type="button"
                     onClick={() => setStep(2)}

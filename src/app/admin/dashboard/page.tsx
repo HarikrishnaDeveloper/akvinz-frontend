@@ -210,15 +210,6 @@ function returnEventStatusColor(status: string): string {
   return "bg-gray-500/20 text-gray-400";
 }
 
-function isOverdueCustomer(customer: Customer): boolean {
-  if (customer.subscriptionStatus !== "ACTIVE" || !customer.subscriptionEnd) return false;
-  const due = new Date(customer.subscriptionEnd);
-  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-  const today = new Date();
-  const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  return dueDay.getTime() < todayDay.getTime();
-}
-
 async function isAssetReceived(customerId: string): Promise<boolean> {
   const res = await adminFetch(`/api/admin/customers/${customerId}/return-events`);
   const data = await res.json();
@@ -305,6 +296,7 @@ function StatusBadge({ status }: { status: string }) {
     COMPLETED: "bg-green-500/20 text-green-400",
     ACTIVE: "bg-green-500/20 text-green-400",
     PENDING: "bg-yellow-500/20 text-yellow-400",
+    PENDING_DUE: "bg-yellow-500/20 text-yellow-400",
     INACTIVE: "bg-gray-500/20 text-gray-400",
     FAILED: "bg-red-500/20 text-red-400",
     CANCELLED: "bg-red-500/20 text-red-400",
@@ -421,31 +413,16 @@ export default function AdminDashboardPage() {
     setIsLoading(true);
     setError("");
     try {
-      // "Pending Due" isn't a real backend status — it's an ACTIVE subscription whose
-      // due date has passed. "Active" here means paid/up-to-date, so both need the
-      // full ACTIVE set fetched and split client-side by due date.
-      const needsSubscriptionSplit = subscriptionStatus === "PENDING_DUE" || subscriptionStatus === "ACTIVE";
-      // Asset received/not-received isn't a stored field either — it's derived from
-      // the latest "Machine Received at Warehouse" return event for customers who
-      // have a return in progress, so it also needs client-side filtering.
+      // Asset received/not-received isn't a stored field — it's derived from
+      // the latest "Machine Received at Warehouse" return event for customers
+      // who have a return in progress, so it needs client-side filtering.
       const needsAssetSplit = assetStatus === "RECEIVED" || assetStatus === "NOT_RECEIVED";
 
-      if (needsSubscriptionSplit || needsAssetSplit) {
-        let all = await fetchAllCustomers(
-          needsSubscriptionSplit ? "ACTIVE" : subscriptionStatus || undefined,
-          needsAssetSplit ? "true" : undefined
-        );
+      if (needsAssetSplit) {
+        let all = await fetchAllCustomers(subscriptionStatus || undefined, "true");
 
-        if (needsSubscriptionSplit) {
-          all = all.filter((c) =>
-            subscriptionStatus === "PENDING_DUE" ? isOverdueCustomer(c) : !isOverdueCustomer(c)
-          );
-        }
-
-        if (needsAssetSplit) {
-          const received = await Promise.all(all.map((c) => isAssetReceived(c.id)));
-          all = all.filter((_, i) => (assetStatus === "RECEIVED" ? received[i] : !received[i]));
-        }
+        const received = await Promise.all(all.map((c) => isAssetReceived(c.id)));
+        all = all.filter((_, i) => (assetStatus === "RECEIVED" ? received[i] : !received[i]));
 
         const pageSize = 20;
         const computedTotalPages = Math.max(1, Math.ceil(all.length / pageSize));
@@ -480,19 +457,9 @@ export default function AdminDashboardPage() {
     setIsExportingCustomers(true);
     setError("");
     try {
-      const needsSubscriptionSplit = subscriptionStatus === "PENDING_DUE" || subscriptionStatus === "ACTIVE";
       const needsAssetSplit = assetStatus === "RECEIVED" || assetStatus === "NOT_RECEIVED";
 
-      let all = await fetchAllCustomers(
-        needsSubscriptionSplit ? "ACTIVE" : subscriptionStatus || undefined,
-        needsAssetSplit ? "true" : undefined
-      );
-
-      if (needsSubscriptionSplit) {
-        all = all.filter((c) =>
-          subscriptionStatus === "PENDING_DUE" ? isOverdueCustomer(c) : !isOverdueCustomer(c)
-        );
-      }
+      let all = await fetchAllCustomers(subscriptionStatus || undefined, needsAssetSplit ? "true" : undefined);
 
       if (needsAssetSplit) {
         const received = await Promise.all(all.map((c) => isAssetReceived(c.id)));
@@ -712,7 +679,11 @@ export default function AdminDashboardPage() {
       const body = new FormData();
       body.append("step", stepKey);
       body.append("status", form.status);
-      body.append("eventDate", `${form.eventDate}T${form.eventTime || "00:00"}`);
+      // Build the Date from the browser's local timezone, then serialize to
+      // an offset-aware ISO string — a naive "YYYY-MM-DDTHH:MM" string would
+      // get reinterpreted under the server's timezone, not the browser's.
+      const localEventDate = new Date(`${form.eventDate}T${form.eventTime || "00:00"}`);
+      body.append("eventDate", localEventDate.toISOString());
       if (form.remarks) body.append("remarks", form.remarks);
       if (stepKey === "DEFECT_REPORTED" && form.status === "YES") {
         defectImages.forEach((file) => {
@@ -1758,18 +1729,13 @@ export default function AdminDashboardPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">
-                          Subscription Status
-                          {isOverdueCustomer(selected) && (
-                            <span className="ml-2 normal-case text-yellow-400 font-normal">(Pending Due)</span>
-                          )}
-                        </label>
+                        <label className="block text-xs text-gray-400 mb-1">Subscription Status</label>
                         <select
                           value={editForm.subscriptionStatus}
                           onChange={(e) => setEditForm({ ...editForm, subscriptionStatus: e.target.value })}
                           className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
                         >
-                          {SUBSCRIPTION_STATUS_FILTERS.filter((s) => s.value !== "PENDING_DUE").map((s) => (
+                          {SUBSCRIPTION_STATUS_FILTERS.map((s) => (
                             <option key={s.value} value={s.value}>{s.label}</option>
                           ))}
                         </select>
