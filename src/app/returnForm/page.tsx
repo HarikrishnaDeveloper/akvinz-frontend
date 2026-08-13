@@ -24,6 +24,8 @@ export default function ReturnFormPage() {
   const [bankAccountNumberConfirm, setBankAccountNumberConfirm] = useState("");
   const [ifscStatus, setIfscStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
   const [ifscBranch, setIfscBranch] = useState("");
+  const [legalDeclarationsAccepted, setLegalDeclarationsAccepted] = useState(false);
+  const [legalDeclarationsExpanded, setLegalDeclarationsExpanded] = useState(false);
 
   useEffect(() => {
     const code = bankIfscCode.trim().toUpperCase();
@@ -148,6 +150,10 @@ export default function ReturnFormPage() {
     }
     if (ifscStatus === "invalid") {
       setSubmitError("Please enter a valid IFSC code.");
+      return;
+    }
+    if (!legalDeclarationsAccepted) {
+      setSubmitError("Please accept the Legal Declarations & Liquidation Release before continuing.");
       return;
     }
     setIsSubmitting(true);
@@ -401,6 +407,83 @@ export default function ReturnFormPage() {
               </div>
             </div>
 
+            <div className="border border-gray-700 rounded-xl bg-[#131724] overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={legalDeclarationsAccepted}
+                  onChange={(e) => setLegalDeclarationsAccepted(e.target.checked)}
+                  className="w-5 h-5 rounded border-gray-600 bg-[#1a1f30] text-[#f26522] focus:ring-1 focus:ring-[#f26522] accent-[#f26522] shrink-0"
+                />
+                <span className="text-sm text-gray-300 flex-grow">
+                  I have read and accept the Legal Declarations &amp; Liquidation Release
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLegalDeclarationsExpanded((v) => !v)}
+                  aria-label={legalDeclarationsExpanded ? "Collapse terms" : "Expand terms"}
+                  className="p-1 text-gray-400 hover:text-white transition-colors shrink-0"
+                >
+                  <svg
+                    className={`w-5 h-5 transition-transform ${legalDeclarationsExpanded ? "rotate-180" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </button>
+              </div>
+              {legalDeclarationsExpanded && (
+                <div className="max-h-72 overflow-y-auto border-t border-gray-700 px-4 py-4 bg-[#1a1f30] space-y-4 text-sm text-gray-300 leading-relaxed">
+                  <h3 className="text-white font-bold text-base">Legal Declarations &amp; Liquidation Release</h3>
+                  <div>
+                    <h4 className="text-white font-semibold mb-1">4.1 Surrender of Possession</h4>
+                    <p>
+                      The Subscriber hereby confirms that they have voluntarily surrendered possession of the Akvinz
+                      Ultron ROM Water Purifier unit along with all original ancillary power and plumbing connectors
+                      to the authorized corporate representative. The Subscriber acknowledges that their role as a
+                      Bailee of the asset is terminated effective immediately upon the departure of the technician.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-white font-semibold mb-1">4.2 Full and Final Settlement</h4>
+                    <p>
+                      Both parties agree that the financial assessment detailed in Section 3 is final, binding, and
+                      calculated in strict compliance with the liquidation guidelines of the Principal Agreement.
+                      Upon processing of the Net Refundable Amount (if any) via electronic bank transfer to the
+                      Subscriber&apos;s verified account within 30-45 working days, no further claims, liabilities,
+                      or disputes shall be entertained by either party.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-white font-semibold mb-1">4.3 Dispute, Refusal to Sign, &amp; Recovery of Deficit</h4>
+                    <p>
+                      If the Subscriber disputes the assessment recorded in Section 3 above, or declines to sign
+                      this Report, the Field Engineer shall record such refusal along with the date and time, and
+                      shall capture photographic and/or video evidence of the asset&apos;s condition at the time of
+                      collection. The assessment recorded herein shall stand as final and binding for the purposes
+                      of deposit settlement unless the Subscriber raises a specific written objection through the
+                      Company&apos;s official escalation channel (per Section 11 of the Principal Subscription
+                      Agreement) within 48 hours of collection. If the deficit amount referred to in the Note above
+                      is not paid within the stipulated 7 working days, the outstanding amount shall accrue interest
+                      at 18% per annum (pro-rated daily) from the due date until payment, without prejudice to the
+                      Company&apos;s right to refer the matter for recovery, including through its authorised
+                      recovery agents or legal counsel.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-white font-semibold mb-1">5. Execution &amp; Sign-Off</h4>
+                    <p className="italic">
+                      &quot;I certify that I have witnessed the de-installation of the asset and agree with the
+                      technician&apos;s assessment of the machine&apos;s physical condition and the final deposit
+                      deductions calculated above.&quot;
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-5">
               <h3 className="text-base font-semibold text-white mb-2">Before you continue</h3>
               <p className="text-sm text-gray-400 leading-relaxed mb-4">
@@ -427,7 +510,7 @@ export default function ReturnFormPage() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={!agreed || isSubmitting || !bankDetailsFilled || !accountNumbersMatch || ifscStatus === "invalid"}
+                disabled={!agreed || isSubmitting || !bankDetailsFilled || !accountNumbersMatch || ifscStatus === "invalid" || !legalDeclarationsAccepted}
                 className="w-full bg-[#f26522] hover:bg-[#e05a1e] text-white font-semibold py-4 px-4 rounded-xl shadow-lg shadow-[#f26522]/20 flex justify-center items-center gap-2 transition-all disabled:opacity-50"
               >
                 {isSubmitting ? "Submitting..." : "Confirm & Discontinue Subscription"}

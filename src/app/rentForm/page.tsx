@@ -21,6 +21,8 @@ export default function RentalFormPage() {
   const [receiptError, setReceiptError] = useState("");
   const [isSettingUpAutopay, setIsSettingUpAutopay] = useState(false);
   const [autopayJustEnabled, setAutopayJustEnabled] = useState(false);
+  const [assetTermsAccepted, setAssetTermsAccepted] = useState(false);
+  const [assetTermsExpanded, setAssetTermsExpanded] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -221,6 +223,10 @@ export default function RentalFormPage() {
   // charge after this one happens automatically via Razorpay, with no
   // further action needed from the customer.
   const handleSetupAutopay = async () => {
+    if (!assetTermsAccepted) {
+      alert("Please accept the Asset Acceptance & Terms above before continuing.");
+      return;
+    }
     setIsSettingUpAutopay(true);
     setAutopayJustEnabled(false);
     const isLoaded = await loadRazorpayScript();
@@ -478,6 +484,67 @@ export default function RentalFormPage() {
               </div>
             </div>
 
+            {customer.autopayStatus !== "ACTIVE" && (
+              <div className="border border-gray-700 rounded-xl bg-[#131724] overflow-hidden">
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={assetTermsAccepted}
+                    onChange={(e) => setAssetTermsAccepted(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-600 bg-[#1a1f30] text-[#f26522] focus:ring-1 focus:ring-[#f26522] accent-[#f26522] shrink-0"
+                  />
+                  <span className="text-sm text-gray-300 flex-grow">
+                    I have read and accept the Asset Acceptance &amp; Terms
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAssetTermsExpanded((v) => !v)}
+                    aria-label={assetTermsExpanded ? "Collapse terms" : "Expand terms"}
+                    className="p-1 text-gray-400 hover:text-white transition-colors shrink-0"
+                  >
+                    <svg
+                      className={`w-5 h-5 transition-transform ${assetTermsExpanded ? "rotate-180" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                  </button>
+                </div>
+                {assetTermsExpanded && (
+                  <div className="max-h-72 overflow-y-auto border-t border-gray-700 px-4 py-4 bg-[#1a1f30] space-y-4 text-sm text-gray-300 leading-relaxed">
+                    <div>
+                      <h4 className="text-white font-semibold mb-1">4.1 Acceptance of Asset</h4>
+                      <p>
+                        The Subscriber hereby declares that they have personally inspected the Product and find it
+                        completely operational, fit for purpose, and satisfying all parameters of the execution
+                        checklist. The Subscriber assumes the role of a lawful Bailee of the corporate asset from
+                        this date forward.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="text-white font-semibold mb-1">4.2 Reaffirmation of Ownership</h4>
+                      <p>
+                        The Subscriber explicitly reiterates that they possess absolutely no proprietary title,
+                        stake, or ownership over the Product or its ancillary hardware. Ownership vests exclusively
+                        with Akvinz by Ragavi Enterprises under Section 2 of the Principal Agreement.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="text-white font-semibold mb-1">4.3 Care and Maintenance Boundaries</h4>
+                      <p>
+                        The Subscriber undertakes to operate the machine strictly as per provided guidelines,
+                        ensuring stable power inputs and regular raw water inflow. Any internal alterations, housing
+                        component breakage, or un-notified removal will trigger immediate penal liabilities under
+                        Section 6 and Section 8 of the Principal Agreement.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {customer.autopayStatus === "ACTIVE" ? (
               <div className="pt-2 text-center bg-green-500/10 border border-green-500/20 rounded-xl p-5">
                 <p className="text-green-400 font-medium flex items-center justify-center gap-2">
@@ -491,12 +558,17 @@ export default function RentalFormPage() {
                 <button
                   type="button"
                   onClick={handleSetupAutopay}
-                  disabled={isSettingUpAutopay || isProcessingPayment}
+                  disabled={isSettingUpAutopay || isProcessingPayment || !assetTermsAccepted}
                   className="w-full bg-[#f26522] hover:bg-[#e05a1e] text-white font-semibold py-4 px-4 rounded-xl shadow-lg shadow-[#f26522]/20 flex justify-center items-center gap-2 transition-all disabled:opacity-50"
                 >
                   <span className="text-lg">{isSettingUpAutopay ? "Setting up..." : `Set up Autopay — ₹${getPrice()}/mo`}</span>
                   {!isSettingUpAutopay && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>}
                 </button>
+                {!assetTermsAccepted && (
+                  <p className="text-center text-xs text-yellow-400">
+                    Please accept the Asset Acceptance &amp; Terms above before continuing.
+                  </p>
+                )}
                 <p className="text-center text-xs text-gray-500">
                   Authorize once via GPay, PhonePe, Paytm, any UPI app, or card — future months are charged automatically. Covers this month too.
                 </p>
