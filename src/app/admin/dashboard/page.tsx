@@ -127,12 +127,12 @@ const SUBSCRIPTION_STATUS_FILTERS: { value: string; label: string }[] = [
 const SECURITY_DEPOSIT_AMOUNTS: Record<number, number> = { 12: 3, 24: 4 };
 const RENTAL_AMOUNTS: Record<number, number> = { 12: 2, 24: 1 };
 
-const DOCUMENT_FIELDS: { key: keyof Customer; label: string }[] = [
-  { key: "aadharFrontImageUrl", label: "Aadhar (Front)" },
-  { key: "aadharBackImageUrl", label: "Aadhar (Back)" },
-  { key: "panFrontImageUrl", label: "PAN (Front)" },
-  { key: "panBackImageUrl", label: "PAN (Back)" },
-  { key: "residenceDocUrl", label: "Residence Doc" },
+const DOCUMENT_FIELDS: { key: keyof Customer; label: string; uploadField: string }[] = [
+  { key: "aadharFrontImageUrl", label: "Aadhar (Front)", uploadField: "aadharFrontFile" },
+  { key: "aadharBackImageUrl", label: "Aadhar (Back)", uploadField: "aadharBackFile" },
+  { key: "panFrontImageUrl", label: "PAN (Front)", uploadField: "panFrontFile" },
+  { key: "panBackImageUrl", label: "PAN (Back)", uploadField: "panBackFile" },
+  { key: "residenceDocUrl", label: "Residence Doc", uploadField: "residenceFile" },
 ];
 
 const RETURN_STEPS: { key: string; label: string; kind: "status" | "boolean" }[] = [
@@ -253,20 +253,53 @@ function DueDateCell({ customer }: { customer: Customer }) {
   );
 }
 
-function DocumentChip({ label, url }: { label: string; url: string | null }) {
+function DocumentChip({
+  label, url, uploading, deleting, onUpload, onDelete,
+}: {
+  label: string;
+  url: string | null;
+  uploading: boolean;
+  deleting: boolean;
+  onUpload: (file: File) => void;
+  onDelete: () => void;
+}) {
   return (
     <div
       className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-xs ${url ? "border-gray-700 bg-[#131724]" : "border-gray-800 bg-[#131724]/40"
         }`}
     >
       <span className={url ? "text-gray-300" : "text-gray-600"}>{label}</span>
-      {url ? (
-        <a href={url} target="_blank" rel="noreferrer" className="text-[#f26522] hover:underline font-medium shrink-0">
-          View
-        </a>
-      ) : (
-        <span className="text-gray-600 shrink-0">Not uploaded</span>
-      )}
+      <div className="flex items-center gap-3 shrink-0">
+        {url && (
+          <a href={url} target="_blank" rel="noreferrer" className="text-[#f26522] hover:underline font-medium">
+            View
+          </a>
+        )}
+        <label className={`font-medium ${uploading ? "text-gray-600" : "text-gray-400 hover:text-white cursor-pointer"}`}>
+          {uploading ? "Uploading..." : url ? "Replace" : "Upload"}
+          <input
+            type="file"
+            accept=".png,.jpg,.jpeg,.pdf"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onUpload(file);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        {url && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="text-red-400 hover:underline font-medium disabled:opacity-50"
+          >
+            {deleting ? "Deleting..." : "Delete"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -340,6 +373,8 @@ export default function AdminDashboardPage() {
   });
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [addError, setAddError] = useState("");
+  const [uploadingDocKey, setUploadingDocKey] = useState("");
+  const [deletingDocKey, setDeletingDocKey] = useState("");
   const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [copiedLink, setCopiedLink] = useState("");
@@ -1039,6 +1074,49 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleUploadDocument = async (dbField: string, uploadField: string, file: File) => {
+    if (!selected) return;
+    setUploadingDocKey(dbField);
+    setError("");
+    try {
+      const body = new FormData();
+      body.append(uploadField, file);
+      const res = await adminFetch(`/api/admin/customers/${selected.id}/documents`, { method: "POST", body });
+      const data = await res.json();
+      if (data.success) {
+        setSelected(data.customer);
+        loadCustomers();
+      } else {
+        setError(data.message || "Failed to upload document");
+      }
+    } catch {
+      setError("Error connecting to server");
+    } finally {
+      setUploadingDocKey("");
+    }
+  };
+
+  const handleDeleteDocument = async (dbField: string) => {
+    if (!selected) return;
+    if (!confirm("Delete this document? This cannot be undone.")) return;
+    setDeletingDocKey(dbField);
+    setError("");
+    try {
+      const res = await adminFetch(`/api/admin/customers/${selected.id}/documents/${dbField}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        setSelected(data.customer);
+        loadCustomers();
+      } else {
+        setError(data.message || "Failed to delete document");
+      }
+    } catch {
+      setError("Error connecting to server");
+    } finally {
+      setDeletingDocKey("");
+    }
+  };
+
   const copyDraftLink = async (draft: Draft) => {
     const url = `${window.location.origin}/customerForm?draft=${draft.id}`;
     try {
@@ -1705,8 +1783,16 @@ export default function AdminDashboardPage() {
                       {DOCUMENT_FIELDS.filter(({ key }) => Boolean(selected[key])).length}/{DOCUMENT_FIELDS.length} uploaded
                     </p>
                     <div className="space-y-2">
-                      {DOCUMENT_FIELDS.map(({ key, label }) => (
-                        <DocumentChip key={key} label={label} url={selected[key] as string | null} />
+                      {DOCUMENT_FIELDS.map(({ key, label, uploadField }) => (
+                        <DocumentChip
+                          key={key}
+                          label={label}
+                          url={selected[key] as string | null}
+                          uploading={uploadingDocKey === key}
+                          deleting={deletingDocKey === key}
+                          onUpload={(file) => handleUploadDocument(key, uploadField, file)}
+                          onDelete={() => handleDeleteDocument(key)}
+                        />
                       ))}
                     </div>
                   </div>
