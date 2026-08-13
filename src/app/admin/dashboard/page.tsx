@@ -27,9 +27,14 @@ interface Customer {
   subscriptionStart: string | null;
   subscriptionEnd: string | null;
   lastPaymentDate: string | null;
+  autopayStatus: string | null;
   returnRequested: boolean;
   returnRequestedAt: string | null;
   refundAmount: number | null;
+  refundBankAccountHolderName: string | null;
+  refundBankName: string | null;
+  refundBankIfscCode: string | null;
+  refundBankAccountNumber: string | null;
   modelName: string | null;
   machineSerialNumber: string | null;
   createdAt: string;
@@ -95,12 +100,16 @@ interface ReturnEvent {
 
 interface Stats {
   totalCustomers: number;
-  activeSubscriptions: number;
-  pendingPayments: number;
-  completedPayments: number;
-  totalReturns: number;
-  pendingRefunds: number;
-  totalRentalRevenue: number;
+  totalSubscribers: number;
+  twelveMonthCustomers: number;
+  twentyFourMonthCustomers: number;
+  rentalPaid: number;
+  rentalDue: number;
+  returnsInitiated: number;
+  customersRefunded: number;
+  rentalRevenue: number;
+  totalDeposits: number;
+  assetsReceived: number;
 }
 
 const PAYMENT_STATUSES = ["PENDING", "COMPLETED", "FAILED", "PENDING_REFUND", "REFUNDED"];
@@ -226,7 +235,7 @@ function DueDateCell({ customer }: { customer: Customer }) {
   const daysLeft = Math.round((dueDay.getTime() - todayDay.getTime()) / (1000 * 60 * 60 * 24));
 
   const isActive = customer.subscriptionStatus === "ACTIVE";
-  const isOverdue = isActive && daysLeft < 0;
+  const isOverdue = daysLeft < 0;
   const isDueSoon = isActive && daysLeft >= 0 && daysLeft <= 3;
 
   let daysLabel: string;
@@ -234,11 +243,8 @@ function DueDateCell({ customer }: { customer: Customer }) {
     daysLabel = `Day ${Math.abs(daysLeft)} overdue`;
   } else if (daysLeft === 0) {
     daysLabel = "Due today";
-  } else if (daysLeft > 0) {
-    daysLabel = `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`;
   } else {
-    // Not currently active, but the plan's end date has already passed.
-    daysLabel = `Day ${Math.abs(daysLeft)} overdue`;
+    daysLabel = `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`;
   }
 
   return (
@@ -269,11 +275,12 @@ function DocumentChip({ label, url }: { label: string; url: string | null }) {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string | number }) {
+function StatCard({ label, value, description }: { label: string; value: string | number; description?: string }) {
   return (
     <div className="bg-[#1a1f30] border border-gray-700/50 rounded-2xl p-5 flex flex-col">
       <p className="text-gray-400 text-sm leading-tight min-h-[2.5rem]">{label}</p>
       <p className="text-2xl font-bold text-white mt-1">{value}</p>
+      {description && <p className="text-gray-500 text-xs mt-1 leading-snug">{description}</p>}
     </div>
   );
 }
@@ -312,6 +319,8 @@ export default function AdminDashboardPage() {
   const router = useRouter();
 
   const [stats, setStats] = useState<Stats | null>(null);
+  const [statsFrom, setStatsFrom] = useState("");
+  const [statsTo, setStatsTo] = useState("");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
@@ -374,10 +383,14 @@ export default function AdminDashboardPage() {
   }, [router]);
 
   const loadStats = useCallback(async () => {
-    const res = await adminFetch("/api/admin/stats");
+    const params = new URLSearchParams();
+    if (statsFrom) params.set("from", statsFrom);
+    if (statsTo) params.set("to", statsTo);
+    const qs = params.toString();
+    const res = await adminFetch(`/api/admin/stats${qs ? `?${qs}` : ""}`);
     const data = await res.json();
     if (data.success) setStats(data.stats);
-  }, []);
+  }, [statsFrom, statsTo]);
 
   const fetchAllCustomers = useCallback(async (statusOverride?: string, returnRequestedOverride?: string) => {
     const all: Customer[] = [];
@@ -1049,15 +1062,49 @@ export default function AdminDashboardPage() {
           <p className="text-gray-400 text-sm mt-1">Manage customers and subscriptions</p>
         </div>
 
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">From</label>
+            <input
+              type="date"
+              value={statsFrom}
+              onChange={(e) => setStatsFrom(e.target.value)}
+              className="px-3 py-2 bg-[#1a1f30] border border-gray-700 rounded-xl text-white text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">To</label>
+            <input
+              type="date"
+              value={statsTo}
+              onChange={(e) => setStatsTo(e.target.value)}
+              className="px-3 py-2 bg-[#1a1f30] border border-gray-700 rounded-xl text-white text-sm"
+            />
+          </div>
+          {(statsFrom || statsTo) && (
+            <button
+              type="button"
+              onClick={() => { setStatsFrom(""); setStatsTo(""); }}
+              className="text-sm text-[#f26522] hover:underline pb-2.5"
+            >
+              Clear (show all-time)
+            </button>
+          )}
+        </div>
+
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
-            <StatCard label="Total Customers" value={stats.totalCustomers} />
-            <StatCard label="Active Subscriptions" value={stats.activeSubscriptions} />
-            <StatCard label="Pending Payments" value={stats.pendingPayments} />
-            <StatCard label="Completed Payments" value={stats.completedPayments} />
-            <StatCard label="Product Returns" value={stats.totalReturns} />
-            <StatCard label="Pending Refunds" value={stats.pendingRefunds} />
-            <StatCard label="Rental Revenue" value={`₹${stats.totalRentalRevenue}`} />
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            <StatCard label="Total Customers" value={stats.totalCustomers} description="Count all unique customers" />
+            <StatCard label="Total Subscribers" value={stats.totalSubscribers} description="Unique customers who successfully paid the security deposit" />
+            <StatCard label="12-Month Customers" value={stats.twelveMonthCustomers} description="Unique customers with an active/paid 12-month subscription" />
+            <StatCard label="24-Month Customers" value={stats.twentyFourMonthCustomers} description="Unique customers with an active/paid 24-month subscription" />
+            <StatCard label="Rental Paid" value={stats.rentalPaid} description="Unique customers who paid rental" />
+            <StatCard label="Rental Due" value={stats.rentalDue} description="Unique customers with outstanding rental payment" />
+            <StatCard label="Returns Initiated" value={stats.returnsInitiated} description="Unique customers who initiated a return" />
+            <StatCard label="Customers Refunded" value={stats.customersRefunded} description="Unique customers who received a completed refund" />
+            <StatCard label="Assets Received" value={stats.assetsReceived} description="Unique customers whose returned machine is back in the warehouse" />
+            <StatCard label="Rental Revenue" value={`₹${stats.rentalRevenue}`} description="Total ₹ collected from successful rental payments" />
+            <StatCard label="Total Deposits" value={`₹${stats.totalDeposits}`} description="Total ₹ collected as security deposits" />
           </div>
         )}
 
@@ -1142,7 +1189,7 @@ export default function AdminDashboardPage() {
                     <th className="py-2 pr-4 font-medium">Due Date</th>
                     <th className="py-2 pr-4 font-medium">Last Rental Payment</th>
                     <th className="py-2 pr-4 font-medium">Joined</th>
-                    <th className="py-2 pr-4 font-medium">Returned</th>
+                    <th className="py-2 pr-4 font-medium">Return Initiated</th>
                     <th className="py-2 pr-4 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
@@ -1675,6 +1722,13 @@ export default function AdminDashboardPage() {
 
                 {activeSection === "subscription" && (
                   <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400">Autopay:</span>
+                      <StatusBadge status={selected.autopayStatus || "NOT_SET"} />
+                      {selected.autopayStatus === "FAILED" && (
+                        <span className="text-xs text-red-400">Charge failed — generate a payment link below to collect manually.</span>
+                      )}
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Payment Status</label>
@@ -1887,6 +1941,34 @@ export default function AdminDashboardPage() {
                         />
                       </div>
                     </div>
+
+                    {selected.returnRequested && (
+                      <div className="border-t border-gray-800 mt-6 pt-6">
+                        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Refund Bank Details</h3>
+                        {selected.refundBankAccountNumber ? (
+                          <div className="bg-[#131724] border border-gray-700 rounded-xl p-4 grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <span className="block text-gray-500 text-xs mb-1">Account Holder Name</span>
+                              <span className="text-white font-medium">{selected.refundBankAccountHolderName || "-"}</span>
+                            </div>
+                            <div>
+                              <span className="block text-gray-500 text-xs mb-1">Bank Name</span>
+                              <span className="text-white font-medium">{selected.refundBankName || "-"}</span>
+                            </div>
+                            <div>
+                              <span className="block text-gray-500 text-xs mb-1">IFSC Code</span>
+                              <span className="text-white font-medium">{selected.refundBankIfscCode || "-"}</span>
+                            </div>
+                            <div>
+                              <span className="block text-gray-500 text-xs mb-1">Account Number</span>
+                              <span className="text-white font-medium">{selected.refundBankAccountNumber}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500">No bank details submitted yet.</p>
+                        )}
+                      </div>
+                    )}
 
                     {selected.returnRequested && (
                       <div className="border-t border-gray-800 mt-6 pt-6">
