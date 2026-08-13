@@ -90,7 +90,7 @@ export default function CustomerFormPage() {
         if (d.residenceDocType) setResidenceDocType(d.residenceDocType);
         setResumedDraft(true);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setIsResumingDraft(false));
   }, []);
 
@@ -999,7 +999,7 @@ export default function CustomerFormPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
               <p className="text-xs text-gray-500 leading-relaxed">
-                This is a refundable security deposit and is not consideration for the subscription. GST is not applicable on this deposit at the time of collection.
+                The security deposit collected for the water purifier subscription service provided by RentOMate (AKVINZ) is held strictly as a refundable performance guarantee. Pursuant to prevailing tax regulations, this deposit does not constitute consideration for a taxable supply and is explicitly excluded from GST liability and filing requirements.
               </p>
             </div>
 
