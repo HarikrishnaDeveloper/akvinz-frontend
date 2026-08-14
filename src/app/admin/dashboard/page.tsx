@@ -204,6 +204,12 @@ function formatDateTimeDMY(date: string | Date): string {
   return `${formatDateDMY(d)}, ${time}`;
 }
 
+function addMonths(dateStr: string, months: number): string {
+  const d = new Date(dateStr);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
 function returnEventStatusColor(status: string): string {
   if (status === "COMPLETED" || status === "NO") return "bg-green-500/20 text-green-400";
   if (status === "YES") return "bg-red-500/20 text-red-400";
@@ -1863,7 +1869,7 @@ export default function AdminDashboardPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Payment Status</label>
+                        <label className="block text-xs text-gray-400 mb-1">Payment Status (Don't touch until refund initiated from company)</label>
                         <select
                           value={editForm.paymentStatus}
                           onChange={(e) => setEditForm({ ...editForm, paymentStatus: e.target.value })}
@@ -1873,7 +1879,7 @@ export default function AdminDashboardPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Subscription Status</label>
+                        <label className="block text-xs text-gray-400 mb-1">Subscription Status (Select only if the pending due is cleared)</label>
                         <select
                           value={editForm.subscriptionStatus}
                           onChange={(e) => setEditForm({ ...editForm, subscriptionStatus: e.target.value })}
@@ -1886,35 +1892,34 @@ export default function AdminDashboardPage() {
                       </div>
                       <div className="col-span-2">
                         <label className="block text-xs text-gray-400 mb-1">Rental Plan</label>
-                        <select
-                          value={editForm.rentalPlanDuration}
-                          onChange={(e) => {
-                            const duration = e.target.value;
-                            setEditForm({
-                              ...editForm,
-                              rentalPlanDuration: duration,
-                              rentalAmount: duration ? String(RENTAL_AMOUNTS[Number(duration)]) : ""
-                            });
-                          }}
-                          className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
-                        >
-                          <option value="">Not set</option>
-                          {[12, 24].map((d) => (
-                            <option key={d} value={d}>{d} months · ₹{RENTAL_AMOUNTS[d]}/month</option>
-                          ))}
-                        </select>
+                        <div className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm text-gray-300">
+                          {editForm.rentalPlanDuration
+                            ? `${editForm.rentalPlanDuration} months · ₹${RENTAL_AMOUNTS[Number(editForm.rentalPlanDuration)]}/month`
+                            : "Not set"}
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Subscription Start</label>
+                        <label className="block text-xs text-gray-400 mb-1">Rent Start Date</label>
                         <input
                           type="date"
                           value={editForm.subscriptionStart}
-                          onChange={(e) => setEditForm({ ...editForm, subscriptionStart: e.target.value })}
+                          onChange={(e) => {
+                            const start = e.target.value;
+                            setEditForm({
+                              ...editForm,
+                              subscriptionStart: start,
+                              subscriptionEnd: start && editForm.rentalPlanDuration
+                                ? addMonths(start, Number(editForm.rentalPlanDuration))
+                                : editForm.subscriptionEnd
+                            });
+                          }}
                           className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Subscription End</label>
+                        <label className="block text-xs text-gray-400 mb-1">
+                          Rent End Date {editForm.rentalPlanDuration ? `(${editForm.rentalPlanDuration} months)` : ""}
+                        </label>
                         <input
                           type="date"
                           value={editForm.subscriptionEnd}
@@ -1922,6 +1927,37 @@ export default function AdminDashboardPage() {
                           className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
                         />
                       </div>
+                      {editForm.subscriptionEnd && (() => {
+                        const due = new Date(editForm.subscriptionEnd);
+                        const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+                        const today = new Date();
+                        const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                        const daysLeft = Math.round((dueDay.getTime() - todayDay.getTime()) / (1000 * 60 * 60 * 24));
+                        const isActive = editForm.subscriptionStatus === "ACTIVE";
+                        const isOverdue = daysLeft < 0;
+                        const isDueSoon = isActive && daysLeft >= 0 && daysLeft <= 3;
+                        let daysLabel: string;
+                        if (isOverdue) {
+                          daysLabel = `Day ${Math.abs(daysLeft)} overdue`;
+                        } else if (daysLeft === 0) {
+                          daysLabel = "Due today";
+                        } else {
+                          daysLabel = `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`;
+                        }
+                        const toneClass = isOverdue
+                          ? "border-red-500/40 bg-red-500/10 text-red-400"
+                          : isDueSoon
+                            ? "border-yellow-500/40 bg-yellow-500/10 text-yellow-400"
+                            : "border-gray-700 bg-[#131724] text-gray-300";
+                        return (
+                          <div className="col-span-2">
+                            <label className="block text-xs text-gray-400 mb-1">Overdue</label>
+                            <div className={`px-3 py-2 rounded-lg border text-sm ${toneClass}`}>
+                              {daysLabel} <span className="text-gray-500">({formatDateDMY(dueDay)})</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="border-t border-gray-800 pt-4">
