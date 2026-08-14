@@ -561,6 +561,38 @@ export default function AdminDashboardPage() {
     }
   }, [subscriptionStatus, assetStatus, fetchAllCustomers]);
 
+  const exportCustomerReceipts = useCallback(() => {
+    if (!selected) return;
+    const location = [selected.addressLine1, selected.addressLine2, selected.city, selected.state]
+      .filter(Boolean)
+      .join(", ") + (selected.pincode ? ` - ${selected.pincode}` : "");
+
+    const header = [
+      "Name", "Mobile", "Email", "Location", "Rent Start Date", "Rent End Date",
+      "Bill Number", "Product / Reason", "Amount", "Payment Method", "Status", "Payment Date", "Payment Time",
+    ];
+    const rows = invoices.map((inv) => {
+      const d = new Date(inv.documentDate);
+      return [
+        selected.fullName,
+        selected.mobileNumber,
+        selected.email,
+        location,
+        selected.subscriptionStart ? formatDateDMY(selected.subscriptionStart) : "",
+        selected.subscriptionEnd ? formatDateDMY(selected.subscriptionEnd) : "",
+        inv.billNumber,
+        inv.reason || inv.productType,
+        inv.amount,
+        inv.paymentMethod,
+        inv.status,
+        formatDateDMY(d),
+        d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
+      ];
+    });
+
+    downloadCsv(`${selected.fullName.replace(/\s+/g, "_")}-receipts-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...rows]);
+  }, [selected, invoices]);
+
   const loadDrafts = useCallback(async () => {
     setDraftsLoading(true);
     setError("");
@@ -1860,6 +1892,15 @@ export default function AdminDashboardPage() {
                       <p className="text-xs text-gray-500">No receipts yet.</p>
                     ) : (
                       <div className="space-y-2">
+                        <div className="flex justify-end mb-1">
+                          <button
+                            type="button"
+                            onClick={exportCustomerReceipts}
+                            className="px-3 py-1.5 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
+                          >
+                            Download Excel
+                          </button>
+                        </div>
                         {invoices.map((inv) => (
                           <div
                             key={inv.id}
