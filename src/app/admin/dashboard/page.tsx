@@ -1814,7 +1814,7 @@ export default function AdminDashboardPage() {
                             <div>
                               <div className="text-gray-200 font-medium">{inv.billNumber}</div>
                               <div className="text-gray-500">
-                                {inv.productType} · ₹{inv.amount} · {formatDateDMY(inv.documentDate)}
+                                {inv.productType} · ₹{inv.amount} · {formatDateTimeDMY(inv.documentDate)}
                               </div>
                             </div>
                             <button onClick={() => downloadInvoicePdf(inv)} className="text-[#f26522] hover:underline shrink-0">
