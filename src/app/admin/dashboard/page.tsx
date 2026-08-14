@@ -35,6 +35,7 @@ interface Customer {
   refundBankName: string | null;
   refundBankIfscCode: string | null;
   refundBankAccountNumber: string | null;
+  planChangeRefundProofUrl: string | null;
   modelName: string | null;
   machineSerialNumber: string | null;
   createdAt: string;
@@ -78,6 +79,7 @@ interface PaymentLinkRecord {
   expireBy: string;
   status: string;
   paidAt: string | null;
+  planChangeTargetDuration: number | null;
   createdAt: string;
 }
 
@@ -1927,6 +1929,20 @@ export default function AdminDashboardPage() {
                           className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
                         />
                       </div>
+                      {editForm.subscriptionStart && editForm.rentalPlanDuration && (() => {
+                        const years = Number(editForm.rentalPlanDuration) / 12;
+                        const termEnd = addMonths(editForm.subscriptionStart, Number(editForm.rentalPlanDuration));
+                        return (
+                          <div className="col-span-2">
+                            <label className="block text-xs text-gray-400 mb-1">
+                              Plan Term ({years} year{years === 1 ? "" : "s"})
+                            </label>
+                            <div className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm text-gray-300">
+                              {formatDateDMY(editForm.subscriptionStart)} → {formatDateDMY(termEnd)}
+                            </div>
+                          </div>
+                        );
+                      })()}
                       {editForm.subscriptionEnd && (() => {
                         const due = new Date(editForm.subscriptionEnd);
                         const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
@@ -2037,14 +2053,51 @@ export default function AdminDashboardPage() {
                             </div>
                           )}
 
-                          <button
-                            type="button"
-                            onClick={confirmPlanChange}
-                            disabled={changingPlan}
-                            className="w-full mt-3 px-3 py-2 text-xs bg-[#f26522]/10 border border-[#f26522]/40 rounded-lg text-[#f26522] hover:bg-[#f26522]/20 transition-colors disabled:opacity-50"
-                          >
-                            {changingPlan ? "Applying..." : "Confirm & Apply Plan Change"}
-                          </button>
+                          {planChangeDifference() < 0 && (
+                            <div className="mt-2">
+                              <label className="block text-xs text-gray-400 mb-1">
+                                Proof of Refund Sent &mdash; upload before you can confirm this downgrade
+                              </label>
+                              <DocumentChip
+                                label="Refund Proof"
+                                url={selected.planChangeRefundProofUrl}
+                                uploading={uploadingDocKey === "planChangeRefundProofUrl"}
+                                deleting={deletingDocKey === "planChangeRefundProofUrl"}
+                                onUpload={(file) => handleUploadDocument("planChangeRefundProofUrl", "planChangeRefundProofFile", file)}
+                                onDelete={() => handleDeleteDocument("planChangeRefundProofUrl")}
+                              />
+                            </div>
+                          )}
+
+                          {(() => {
+                            const isUpgrade = planChangeDifference() > 0;
+                            const isDowngrade = planChangeDifference() < 0;
+                            const hasPaidTopUpLink = paymentLinkHistory.some(
+                              (r) => r.status === "PAID" && r.planChangeTargetDuration === Number(newPlanDuration)
+                            );
+                            const blocked =
+                              (isDowngrade && !selected.planChangeRefundProofUrl) ||
+                              (isUpgrade && !hasPaidTopUpLink);
+                            return (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={confirmPlanChange}
+                                  disabled={changingPlan || blocked}
+                                  className="w-full mt-3 px-3 py-2 text-xs bg-[#f26522]/10 border border-[#f26522]/40 rounded-lg text-[#f26522] hover:bg-[#f26522]/20 transition-colors disabled:opacity-50"
+                                >
+                                  {changingPlan ? "Applying..." : "Confirm & Apply Plan Change"}
+                                </button>
+                                {blocked && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {isDowngrade
+                                      ? "Upload proof of the refund above to enable this."
+                                      : "Mark the top-up link above as paid to enable this."}
+                                  </p>
+                                )}
+                              </>
+                            );
+                          })()}
                         </>
                       )}
 
