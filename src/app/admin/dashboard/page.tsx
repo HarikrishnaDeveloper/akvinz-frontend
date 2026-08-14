@@ -87,6 +87,7 @@ interface PayoutRecord {
   id: string;
   amount: number;
   reason: string;
+  proofUrl: string;
   createdAt: string;
 }
 
@@ -398,6 +399,7 @@ export default function AdminDashboardPage() {
   const [transactionMode, setTransactionMode] = useState<"pay" | "collect">("collect");
   const [payoutAmount, setPayoutAmount] = useState("");
   const [payoutReason, setPayoutReason] = useState("");
+  const [payoutProofFile, setPayoutProofFile] = useState<File | null>(null);
   const [recordingPayout, setRecordingPayout] = useState(false);
   const [payoutHistory, setPayoutHistory] = useState<PayoutRecord[]>([]);
   const [payoutHistoryLoading, setPayoutHistoryLoading] = useState(false);
@@ -881,17 +883,27 @@ export default function AdminDashboardPage() {
       setError("Enter a reason");
       return;
     }
+    if (!payoutProofFile) {
+      setError("Attach payment proof before recording");
+      return;
+    }
     setRecordingPayout(true);
     try {
+      const body = new FormData();
+      body.append("amount", String(amount));
+      body.append("reason", payoutReason.trim());
+      body.append("proofFile", payoutProofFile);
       const res = await adminFetch(`/api/admin/customers/${selected.id}/payout`, {
         method: "POST",
-        body: JSON.stringify({ amount, reason: payoutReason.trim() }),
+        body,
       });
       const data = await res.json();
       if (data.success) {
         setPayoutAmount("");
         setPayoutReason("");
+        setPayoutProofFile(null);
         loadPayoutHistory(selected.id);
+        loadInvoices(selected.id);
       } else {
         setError(data.message || "Failed to record payment");
       }
@@ -1651,10 +1663,32 @@ export default function AdminDashboardPage() {
                             className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
                           />
                         </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">
+                            Payment Proof &mdash; attach before you can record this payment
+                          </label>
+                          <div
+                            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-xs ${payoutProofFile ? "border-gray-700 bg-[#131724]" : "border-gray-800 bg-[#131724]/40"
+                              }`}
+                          >
+                            <span className={payoutProofFile ? "text-gray-300 truncate" : "text-gray-600"}>
+                              {payoutProofFile ? payoutProofFile.name : "No file attached"}
+                            </span>
+                            <label className="font-medium text-gray-400 hover:text-white cursor-pointer shrink-0">
+                              {payoutProofFile ? "Replace" : "Attach"}
+                              <input
+                                type="file"
+                                accept=".png,.jpg,.jpeg,.pdf"
+                                className="hidden"
+                                onChange={(e) => setPayoutProofFile(e.target.files?.[0] || null)}
+                              />
+                            </label>
+                          </div>
+                        </div>
                         <button
                           type="button"
                           onClick={recordPayout}
-                          disabled={recordingPayout}
+                          disabled={recordingPayout || !payoutProofFile}
                           className="w-full px-3 py-2 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50"
                         >
                           {recordingPayout ? "Recording..." : "Record Payment"}
@@ -1729,6 +1763,7 @@ export default function AdminDashboardPage() {
                               statusColor: "text-green-400",
                               date: new Date(p.createdAt),
                               link: null as PaymentLinkRecord | null,
+                              proofUrl: p.proofUrl as string | null,
                             })),
                             ...paymentLinkHistory.map((r) => {
                               const expired = new Date(r.expireBy) < new Date();
@@ -1743,6 +1778,7 @@ export default function AdminDashboardPage() {
                                 statusColor,
                                 date: new Date(r.status === "PAID" && r.paidAt ? r.paidAt : r.createdAt),
                                 link: r,
+                                proofUrl: null as string | null,
                               };
                             }),
                           ]
@@ -1760,6 +1796,16 @@ export default function AdminDashboardPage() {
                                     {row.detail} · {formatDateTimeDMY(row.date)}
                                   </div>
                                 </div>
+                                {row.proofUrl && (
+                                  <a
+                                    href={row.proofUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[#f26522] hover:underline shrink-0"
+                                  >
+                                    View Proof
+                                  </a>
+                                )}
                                 {row.link && row.link.status !== "PAID" && (
                                   <div className="flex items-center gap-3 shrink-0">
                                     <button
