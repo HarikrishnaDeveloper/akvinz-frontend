@@ -40,6 +40,7 @@ export default function CustomerFormPage() {
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [mobileAlreadyRegistered, setMobileAlreadyRegistered] = useState(false);
+  const [emailAlreadyRegistered, setEmailAlreadyRegistered] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsExpanded, setTermsExpanded] = useState(false);
 
@@ -125,6 +126,11 @@ export default function CustomerFormPage() {
             return;
           }
           setMobileAlreadyRegistered(false);
+          if (data.code === "EMAIL_EXISTS") {
+            setEmailAlreadyRegistered(true);
+            return;
+          }
+          setEmailAlreadyRegistered(false);
           // The backend may have merged this into a pre-existing draft for
           // the same mobile number (resumed from another device/session) —
           // adopt that id so future autosaves update the same row instead
@@ -722,6 +728,11 @@ export default function CustomerFormPage() {
                       </div>
                       <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="block w-full pl-12 pr-4 py-3 bg-[#131724] border border-gray-700 rounded-xl focus:ring-1 focus:ring-[#f26522] focus:border-[#f26522] text-white placeholder-gray-600 transition-colors" placeholder="john@example.com" />
                     </div>
+                    {emailAlreadyRegistered && (
+                      <p className="mt-2 text-sm text-red-400">
+                        This email is already registered. Please use a different email or the rent/manage-subscription link instead.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -939,8 +950,8 @@ export default function CustomerFormPage() {
             <div className="pt-6">
               <button
                 type="submit"
-                disabled={!otpVerified || !allDocumentsUploaded}
-                className={`w-full font-semibold py-4 px-4 rounded-xl shadow-lg flex justify-center items-center gap-2 transition-all active:scale-[0.98] ${otpVerified && allDocumentsUploaded ? 'bg-[#f26522] hover:bg-[#e05a1e] text-white shadow-[#f26522]/20' : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'}`}
+                disabled={!otpVerified || !allDocumentsUploaded || emailAlreadyRegistered}
+                className={`w-full font-semibold py-4 px-4 rounded-xl shadow-lg flex justify-center items-center gap-2 transition-all active:scale-[0.98] ${otpVerified && allDocumentsUploaded && !emailAlreadyRegistered ? 'bg-[#f26522] hover:bg-[#e05a1e] text-white shadow-[#f26522]/20' : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'}`}
               >
                 <span className="text-lg">Continue to Next Step</span>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
