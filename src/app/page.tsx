@@ -37,6 +37,15 @@ const actions = [
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 18L18 6M6 6l12 12" />
     ),
   },
+  {
+    href: "/bankDetailsForm",
+    title: "Bank Account Details",
+    description: "Registered customers can add or update the bank account we send payments to.",
+    accent: "text-[#f26522] bg-[#f26522]/10",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M2.25 21h19.5M4.5 21V9.75M9.75 21V9.75M14.25 21V9.75M19.5 21V9.75M2.25 9.75L12 3l9.75 6.75M4.5 9.75h15" />
+    ),
+  },
 ];
 
 export default function Home() {

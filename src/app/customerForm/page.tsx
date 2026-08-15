@@ -28,7 +28,6 @@ export default function CustomerFormPage() {
   const [aadharFrontFile, setAadharFrontFile] = useState<File | null>(null);
   const [aadharBackFile, setAadharBackFile] = useState<File | null>(null);
   const [panFrontFile, setPanFrontFile] = useState<File | null>(null);
-  const [panBackFile, setPanBackFile] = useState<File | null>(null);
   const [residenceFile, setResidenceFile] = useState<File | null>(null);
 
   // OTP States
@@ -41,6 +40,8 @@ export default function CustomerFormPage() {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [mobileAlreadyRegistered, setMobileAlreadyRegistered] = useState(false);
   const [emailAlreadyRegistered, setEmailAlreadyRegistered] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const isValidEmailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsExpanded, setTermsExpanded] = useState(false);
 
@@ -100,6 +101,9 @@ export default function CustomerFormPage() {
     const hasData = fullName || mobileNumber || email || addressLine1 || addressLine2 || city || stateName || pincode;
     if (!hasData) return;
 
+    if (isValidEmailFormat) setCheckingEmail(true);
+    else setCheckingEmail(false);
+
     const timer = setTimeout(() => {
       fetch(`${API_URL}/customer/draft`, {
         method: "POST",
@@ -121,6 +125,7 @@ export default function CustomerFormPage() {
       })
         .then((res) => res.json())
         .then((data) => {
+          setCheckingEmail(false);
           if (data.code === "CUSTOMER_EXISTS") {
             setMobileAlreadyRegistered(true);
             return;
@@ -140,11 +145,11 @@ export default function CustomerFormPage() {
             localStorage.setItem("akvinz_draft_id", data.resumedDraftId);
           }
         })
-        .catch(() => { });
+        .catch(() => { setCheckingEmail(false); });
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [draftId, fullName, mobileNumber, email, addressLine1, addressLine2, city, stateName, pincode, planDuration, houseType, residenceDocType]);
+  }, [draftId, fullName, mobileNumber, email, addressLine1, addressLine2, city, stateName, pincode, planDuration, houseType, residenceDocType, isValidEmailFormat]);
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
@@ -345,7 +350,7 @@ export default function CustomerFormPage() {
       return;
     }
 
-    if (!aadharFrontFile || !aadharBackFile || !panFrontFile || !panBackFile || !residenceFile) {
+    if (!aadharFrontFile || !aadharBackFile || !panFrontFile || !residenceFile) {
       alert("Please upload all required documents — Aadhaar (front & back), PAN (front & back), and your residence proof — before continuing.");
       return;
     }
@@ -368,7 +373,6 @@ export default function CustomerFormPage() {
       if (aadharFrontFile) formData.append("aadharFrontFile", aadharFrontFile);
       if (aadharBackFile) formData.append("aadharBackFile", aadharBackFile);
       if (panFrontFile) formData.append("panFrontFile", panFrontFile);
-      if (panBackFile) formData.append("panBackFile", panBackFile);
       if (residenceFile) formData.append("residenceFile", residenceFile);
 
       const res = await fetch(`${API_URL}/register`, {
@@ -415,7 +419,7 @@ export default function CustomerFormPage() {
     return duration === "12" ? "2" : "1";
   };
 
-  const allDocumentsUploaded = !!aadharFrontFile && !!aadharBackFile && !!panFrontFile && !!panBackFile && !!residenceFile;
+  const allDocumentsUploaded = !!aadharFrontFile && !!aadharBackFile && !!panFrontFile && !!residenceFile;
 
   return (
     <div className="min-h-screen bg-[#131724] text-white flex flex-col font-sans">
@@ -726,13 +730,37 @@ export default function CustomerFormPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                         </svg>
                       </div>
-                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="block w-full pl-12 pr-4 py-3 bg-[#131724] border border-gray-700 rounded-xl focus:ring-1 focus:ring-[#f26522] focus:border-[#f26522] text-white placeholder-gray-600 transition-colors" placeholder="john@example.com" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          setEmailAlreadyRegistered(false);
+                        }}
+                        className={`block w-full pl-12 pr-4 py-3 bg-[#131724] border rounded-xl focus:ring-1 text-white placeholder-gray-600 transition-colors ${emailAlreadyRegistered ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-700 focus:ring-[#f26522] focus:border-[#f26522]"}`}
+                        placeholder="john@example.com"
+                      />
                     </div>
-                    {emailAlreadyRegistered && (
-                      <p className="mt-2 text-sm text-red-400">
-                        This email is already registered. Please use a different email or the rent/manage-subscription link instead.
+                    {checkingEmail ? (
+                      <p className="mt-2 text-sm text-gray-400 flex items-center gap-1.5">
+                        <svg className="animate-spin h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        Checking email availability...
                       </p>
-                    )}
+                    ) : emailAlreadyRegistered ? (
+                      <p className="mt-2 text-sm text-red-400">
+                        This email is already registered. Please use a different email.
+                      </p>
+                    ) : isValidEmailFormat ? (
+                      <p className="mt-2 text-sm text-green-400 flex items-center gap-1.5">
+                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Email available
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -844,25 +872,6 @@ export default function CustomerFormPage() {
                     </p>
                     <p className="text-xs text-gray-500">PNG, JPG or PDF (Max 5MB)</p>
                     <input type="file" className="hidden" accept=".png,.jpg,.jpeg,.pdf" onChange={(e) => setPanFrontFile(e.target.files?.[0] || null)} />
-                  </label>
-                </div>
-
-                {/* PAN Back Upload */}
-                <div>
-                  <span className="block text-sm text-gray-300 mb-2">PAN Card Image (Back Side)</span>
-                  <label className="border border-dashed border-gray-600 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-[#131724]/50 hover:border-[#f26522] hover:bg-[#131724] transition-all cursor-pointer group block w-full relative">
-                    <svg className="w-8 h-8 text-gray-500 mb-3 group-hover:text-[#f26522] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                    </svg>
-                    <p className="text-sm text-gray-400 mb-1">
-                      {panBackFile ? (
-                        <span className="text-[#f26522] font-semibold">{panBackFile.name}</span>
-                      ) : (
-                        <><span className="text-[#f26522] font-semibold">Choose File</span> or drag & drop</>
-                      )}
-                    </p>
-                    <p className="text-xs text-gray-500">PNG, JPG or PDF (Max 5MB)</p>
-                    <input type="file" className="hidden" accept=".png,.jpg,.jpeg,.pdf" onChange={(e) => setPanBackFile(e.target.files?.[0] || null)} />
                   </label>
                 </div>
               </div>

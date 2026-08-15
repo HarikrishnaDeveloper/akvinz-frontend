@@ -35,6 +35,10 @@ interface Customer {
   refundBankName: string | null;
   refundBankIfscCode: string | null;
   refundBankAccountNumber: string | null;
+  bankAccountHolderName: string | null;
+  bankName: string | null;
+  bankIfscCode: string | null;
+  bankAccountNumber: string | null;
   planChangeRefundProofUrl: string | null;
   modelName: string | null;
   machineSerialNumber: string | null;
@@ -330,6 +334,7 @@ const CUSTOMER_MODAL_SECTIONS: { key: string; label: string }[] = [
   { key: "receipts", label: "Receipts" },
   { key: "product", label: "Company Assets" },
   { key: "subscription", label: "Payment & Subscription" },
+  { key: "bankDetails", label: "Account Details" },
   { key: "returns", label: "Returns & Refund" },
 ];
 
@@ -418,6 +423,7 @@ export default function AdminDashboardPage() {
   const [returnEventForm, setReturnEventForm] = useState<Record<string, { status: string; eventDate: string; eventTime: string; remarks: string }>>({});
   const [savingReturnStep, setSavingReturnStep] = useState("");
   const [showReturnHistory, setShowReturnHistory] = useState(false);
+  const [editingBankDetails, setEditingBankDetails] = useState(false);
   const [defectImages, setDefectImages] = useState<(File | null)[]>([null, null, null]);
 
   const [activeTab, setActiveTab] = useState<"customers" | "drafts">("customers");
@@ -823,6 +829,7 @@ export default function AdminDashboardPage() {
     setPlanChangeAmount(String(Math.abs(SECURITY_DEPOSIT_AMOUNTS[defaultPlan] - SECURITY_DEPOSIT_AMOUNTS[customer.planDuration])));
     setPlanChangeTopUpUrl("");
     setCopiedTopUpLink(false);
+    setEditingBankDetails(false);
     setEditForm({
       paymentStatus: customer.paymentStatus,
       subscriptionStatus: customer.subscriptionStatus,
@@ -834,6 +841,10 @@ export default function AdminDashboardPage() {
       refundAmount: customer.refundAmount !== null ? String(customer.refundAmount) : "",
       modelName: customer.modelName || "",
       machineSerialNumber: customer.machineSerialNumber || "",
+      bankAccountHolderName: customer.bankAccountHolderName || "",
+      bankName: customer.bankName || "",
+      bankIfscCode: customer.bankIfscCode || "",
+      bankAccountNumber: customer.bankAccountNumber || "",
     });
   };
 
@@ -1629,6 +1640,13 @@ export default function AdminDashboardPage() {
                       >
                         {copiedLink === "return" ? "Copied!" : "Copy Return Link"}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => copyLink("/bankDetailsForm", selected.mobileNumber, "bankDetails")}
+                        className="px-3 py-1.5 text-xs bg-[#131724] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
+                      >
+                        {copiedLink === "bankDetails" ? "Copied!" : "Copy Bank Details Link"}
+                      </button>
                       {selected.paymentStatus === "PENDING_REFUND" && (
                         <button
                           type="button"
@@ -2223,6 +2241,99 @@ export default function AdminDashboardPage() {
                         })()}
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {activeSection === "bankDetails" && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Bank Account Details</h3>
+                      {!editingBankDetails && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingBankDetails(true)}
+                          className="text-xs text-[#f26522] hover:underline"
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
+
+                    {!editingBankDetails ? (
+                      selected.bankAccountNumber ? (
+                        <div className="bg-[#131724] border border-gray-700 rounded-xl p-4 grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="block text-gray-500 text-xs mb-1">Account Holder Name</span>
+                            <span className="text-white font-medium">{selected.bankAccountHolderName || "-"}</span>
+                          </div>
+                          <div>
+                            <span className="block text-gray-500 text-xs mb-1">Bank Name</span>
+                            <span className="text-white font-medium">{selected.bankName || "-"}</span>
+                          </div>
+                          <div>
+                            <span className="block text-gray-500 text-xs mb-1">IFSC Code</span>
+                            <span className="text-white font-medium">{selected.bankIfscCode || "-"}</span>
+                          </div>
+                          <div>
+                            <span className="block text-gray-500 text-xs mb-1">Account Number</span>
+                            <span className="text-white font-medium">{selected.bankAccountNumber}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">
+                          No bank details submitted yet. Use &quot;Copy Bank Details Link&quot; in Quick Links to request them, or click Edit to enter them yourself.
+                        </p>
+                      )
+                    ) : (
+                      <>
+                        <p className="text-xs text-gray-500 mb-4">
+                          Editing here overrides whatever the customer submitted. Click Save Changes below to apply.
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Account Holder Name</label>
+                            <input
+                              type="text"
+                              value={editForm.bankAccountHolderName}
+                              onChange={(e) => setEditForm({ ...editForm, bankAccountHolderName: e.target.value })}
+                              placeholder="As per bank records"
+                              className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Bank Name</label>
+                            <input
+                              type="text"
+                              value={editForm.bankName}
+                              onChange={(e) => setEditForm({ ...editForm, bankName: e.target.value })}
+                              placeholder="e.g. State Bank of India"
+                              className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">IFSC Code</label>
+                            <input
+                              type="text"
+                              value={editForm.bankIfscCode}
+                              onChange={(e) => setEditForm({ ...editForm, bankIfscCode: e.target.value.toUpperCase() })}
+                              placeholder="e.g. SBIN0001234"
+                              className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm uppercase"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Account Number</label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={editForm.bankAccountNumber}
+                              onChange={(e) => setEditForm({ ...editForm, bankAccountNumber: e.target.value.replace(/\D/g, "") })}
+                              placeholder="Enter account number"
+                              className="w-full px-3 py-2 bg-[#131724] border border-gray-700 rounded-lg text-sm"
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
