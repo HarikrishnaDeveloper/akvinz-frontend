@@ -1929,6 +1929,10 @@ export default function AdminDashboardPage() {
                               <div className="text-gray-500">
                                 {inv.productType} · ₹{inv.amount} · {formatDateTimeDMY(inv.documentDate)}
                               </div>
+                              <div className="text-gray-600 mt-0.5">
+                                {inv.paymentMethod}
+                                {inv.transactionId && ` · ${inv.transactionId}`}
+                              </div>
                             </div>
                             <button onClick={() => downloadInvoicePdf(inv)} className="text-[#f26522] hover:underline shrink-0">
                               Download PDF
@@ -2392,6 +2396,51 @@ export default function AdminDashboardPage() {
                         )}
                       </div>
                     )}
+
+                    {(() => {
+                      const refundInvoice = invoices.find((inv) => inv.type === "REFUND");
+                      if (!refundInvoice) return null;
+                      return (
+                        <div className="border-t border-gray-800 mt-6 pt-6">
+                          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Refund Transaction</h3>
+                          <div className="bg-[#131724] border border-gray-700 rounded-xl p-4">
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                              <span className="text-2xl font-bold text-white">₹{refundInvoice.amount}</span>
+                              <StatusBadge status={refundInvoice.status} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div>
+                                <span className="block text-gray-500 text-xs mb-1">Payment Method</span>
+                                <span className="text-white font-medium">{refundInvoice.paymentMethod}</span>
+                              </div>
+                              <div>
+                                <span className="block text-gray-500 text-xs mb-1">Transaction ID</span>
+                                <span className="text-white font-medium break-all">{refundInvoice.transactionId || "-"}</span>
+                              </div>
+                              <div>
+                                <span className="block text-gray-500 text-xs mb-1">Date</span>
+                                <span className="text-white font-medium">{formatDateTimeDMY(refundInvoice.documentDate)}</span>
+                              </div>
+                              <div>
+                                <span className="block text-gray-500 text-xs mb-1">Receipt</span>
+                                <button
+                                  onClick={() => downloadInvoicePdf(refundInvoice)}
+                                  className="text-[#f26522] hover:underline font-medium"
+                                >
+                                  Download PDF
+                                </button>
+                              </div>
+                            </div>
+                            {refundInvoice.paymentMethod === "Razorpay" && (
+                              <p className="text-xs text-gray-500 mt-3">
+                                Sent automatically via Razorpay to the customer&apos;s original payment method — not the bank
+                                details shown above (those are kept on file but aren&apos;t used for this transfer).
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {selected.returnRequested && (
                       <div className="border-t border-gray-800 mt-6 pt-6">
